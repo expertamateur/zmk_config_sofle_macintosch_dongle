@@ -109,7 +109,7 @@
         };
 
         direction {
-            display-name = "direction";
+            display-name = "direct";
             bindings = <
 &BOT
 &out OUT_TOG  &none      &none       &none      &none   &none   &none   &none   &bt BT_SEL 0  &bt BT_SEL 1  &bt BT_SEL 2  &bt BT_SEL 3  &bt BT_SEL 4  &bt BT_CLR
@@ -121,7 +121,7 @@
         };
 
         fn_layer {
-            display-name = "fn_layer";
+            display-name = "func";
             bindings = <
 &BOT
 &kp F12   &kp F1   &kp F2          &kp F3          &kp F4          &kp F5             &none    &none    &kp F6     &kp F7     &kp F8   &kp F9   &kp F10  &kp F11
@@ -135,7 +135,7 @@
         // 目前 鼠标层的设计主要是为了配合左手键区的方向键层，以及ctrl c ctrl v ctrl x，但是无法使用fn层的万能复制粘贴键。
 
         mouse_layer {
-            display-name = "mouse_layer";
+            display-name = "mouse";
             bindings = <
 &BOT
 &trans  &trans  &trans  &trans  &trans     &trans     &trans     &trans  &trans     &trans     &trans  &trans  &trans  &trans
