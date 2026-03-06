@@ -81,7 +81,7 @@ static int space_listener_cb(const zmk_event_t *eh) {
     if (!ev)
         return 0;
 
-    if (ev->position == 60) {
+    if (ev->position == 61) {
         space_pressed = ev->state;
         LOG_INF("Space %s", space_pressed ? "HELD" : "RELEASED");
     }
