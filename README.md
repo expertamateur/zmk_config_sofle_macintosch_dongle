@@ -1,2 +1,3 @@
-# zmk_config_sofle_macintosch_dongle
-zmk configuration for sofle and macintosch dongle
+# 个人keymap布局说明
+# 键盘布局 (Keymap)
+<img src="keymap-drawer/sofle_dongle.svg" >

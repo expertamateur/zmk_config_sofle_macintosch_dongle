@@ -1,4 +1,12 @@
-on: [push, pull_request, workflow_dispatch]
+# .github/workflows/main.yml
+name: Build ZMK firmware
+
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    paths-ignore:
+      - "keymap-drawer/**"
 
 jobs:
   build:
