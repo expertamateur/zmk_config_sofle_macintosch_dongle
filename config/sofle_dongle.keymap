@@ -22,12 +22,6 @@
 
 / {
     
-    BT_FORCE(0);
-    BT_FORCE(1);
-    BT_FORCE(2);
-    BT_FORCE(3);
-    BT_FORCE(4);
-    
     behaviors {
         td_f1_f11: tap_dance_f1_f11 {
             compatible = "zmk,behavior-tap-dance";
@@ -35,26 +29,20 @@
             tapping-term-ms = <220>;
             bindings = <&kp F1>, <&kp F11>;
         };
-    };
 
-    behaviors {
         td_f2_f12: tap_dance_f2_f12 {
             compatible = "zmk,behavior-tap-dance";
             #binding-cells = <0>;
             tapping-term-ms = <220>;
             bindings = <&kp F2>, <&kp F12>;
         };
-    };
 
-    behaviors {
         BLE_encoder: BLE_encoder {
             compatible = "zmk,behavior-sensor-rotate";
             #sensor-binding-cells = <0>;
             bindings = <&bt BT_NXT>, <&bt BT_PRV>;
         };
-    };
 
-    behaviors {
         ctrl_dance: ctrl_dance {
             compatible = "zmk,behavior-tap-dance";
             label = "CTRL_DANCE";
@@ -63,9 +51,7 @@
 
             tapping-term-ms = <220>;
         };
-    };
 
-    behaviors {
         fn_tap: fn_tap {
             compatible = "zmk,behavior-hold-tap";
             label = "FN_TAP";
