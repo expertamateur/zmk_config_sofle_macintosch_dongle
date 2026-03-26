@@ -21,7 +21,6 @@
     }
 
 / {
-    
     behaviors {
         td_f1_f11: tap_dance_f1_f11 {
             compatible = "zmk,behavior-tap-dance";
@@ -65,11 +64,11 @@
     };
 
     macros {
-        BT_FORCE_MACRO(0);
-        BT_FORCE_MACRO(1);
-        BT_FORCE_MACRO(2);
-        BT_FORCE_MACRO(3);
-        BT_FORCE_MACRO(4);
+        BT_FORCE_MACRO = (0);
+        BT_FORCE_MACRO = (1);
+        BT_FORCE_MACRO = (2);
+        BT_FORCE_MACRO = (3);
+        BT_FORCE_MACRO = (4);
 
         shift_contrl_alt: shift_contrl_alt {
             compatible = "zmk,behavior-macro";
@@ -114,11 +113,11 @@
             display-name = "direct";
             bindings = <
 &bootloader
-&out OUT_USB  &bt_out0   &bt_out1    &bt_out2   &bt_out3&bt_out4   &kp C_POWER   &kp C_SLEEP   &none  &none  &none  &none  &none  &bt BT_CLR
-&none         &kp HOME   &kp UP      &kp END    &none   &none   &none   &none   &none         &none         &none         &none
-&none         &kp LEFT   &kp DOWN    &kp RIGHT  &none   &none   &none   &none   &mkp LCLK     &mkp RCLK     &none         &none         &none         &none
-&trans        &kp PG_UP  &kp INSERT  &kp PG_DN  &none   &none   &none   &none   &none         &none         &none         &none         &none         &none        &none  &none
-&trans        &trans     &trans      &trans     &trans  &trans  &trans  &trans  &trans        &trans
+&out OUT_USB  &bt_out0   &bt_out1    &bt_out2   &bt_out3  &bt_out4  &kp C_POWER  &kp C_SLEEP  &none      &none      &none  &none  &none  &bt BT_CLR
+&none         &kp HOME   &kp UP      &kp END    &none     &none     &none        &none        &none      &none      &none  &none
+&none         &kp LEFT   &kp DOWN    &kp RIGHT  &none     &none     &none        &none        &mkp LCLK  &mkp RCLK  &none  &none  &none  &none
+&trans        &kp PG_UP  &kp INSERT  &kp PG_DN  &none     &none     &none        &none        &none      &none      &none  &none  &none  &none       &none  &none
+&trans        &trans     &trans      &trans     &trans    &trans    &trans       &trans       &trans     &trans
             >;
         };
 
@@ -140,11 +139,11 @@
             display-name = "mouse";
             bindings = <
 &bootloader
-&trans       &trans  &trans  &trans  &trans     &trans     &trans     &trans  &trans     &trans     &trans  &trans  &trans  &trans
-&trans       &trans  &trans  &trans  &trans     &trans     &trans     &trans  &trans     &trans     &trans  &trans
-&trans       &trans  &trans  &trans  &mkp RCLK  &mkp LCLK  &trans     &trans  &mkp LCLK  &mkp RCLK  &trans  &trans  &trans  &trans
-&trans       &trans  &trans  &trans  &trans     &trans     &trans     &trans  &trans     &trans     &trans  &trans  &trans  &trans  &trans  &trans
-&trans       &trans  &trans  &trans  &trans     &trans     &kp SPACE  &trans  &trans     &trans
+&trans       &trans          &trans          &trans           &trans     &trans     &trans     &trans  &trans     &trans     &trans  &trans  &trans  &trans
+&trans       &trans          &mmv MOVE_UP    &trans           &trans     &trans     &trans     &trans  &trans     &trans     &trans  &trans
+&trans       &mmv MOVE_LEFT  &mmv MOVE_DOWN  &mmv MOVE_RIGHT  &mkp RCLK  &mkp LCLK  &trans     &trans  &mkp LCLK  &mkp RCLK  &trans  &trans  &trans  &trans
+&trans       &trans          &trans          &trans           &trans     &trans     &trans     &trans  &trans     &trans     &trans  &trans  &trans  &trans  &trans  &trans
+&trans       &trans          &trans          &trans           &trans     &trans     &kp SPACE  &trans  &trans     &trans
             >;
         };
 
