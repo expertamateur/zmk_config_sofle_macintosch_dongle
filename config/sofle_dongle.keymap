@@ -78,12 +78,12 @@
         };
     };
 
-    macros {
-        BT_FORCE_MACRO = (0);
-        BT_FORCE_MACRO = (1);
-        BT_FORCE_MACRO = (2);
-        BT_FORCE_MACRO = (3);
-        BT_FORCE_MACRO = (4);
+macros {
+        BT_FORCE_MACRO(0);
+        BT_FORCE_MACRO(1);
+        BT_FORCE_MACRO(2);
+        BT_FORCE_MACRO(3);
+        BT_FORCE_MACRO(4);
 
         shift_contrl_alt: shift_contrl_alt {
             compatible = "zmk,behavior-macro";
