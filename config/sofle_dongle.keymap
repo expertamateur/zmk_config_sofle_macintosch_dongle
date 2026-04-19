@@ -27,14 +27,14 @@
             compatible = "zmk,behavior-tap-dance";
             #binding-cells = <0>;
             tapping-term-ms = <220>;
-            bindings = <&kp LEFT_WIN>, <&kp LC(LEFT_WIN)>;
+            bindings = <&kp LEFT_WIN>, <&kp LG(LCTRL)>;
         };
 
         td_rt_win_ctrl: tap_dance_rt_win_ctrl {
             compatible = "zmk,behavior-tap-dance";
             #binding-cells = <0>;
             tapping-term-ms = <220>;
-            bindings = <&kp RIGHT_WIN>, <&kp RC(RIGHT_WIN)>;
+            bindings = <&kp RIGHT_WIN>, <&kp RG(RCTRL)>;
         };
 
         td_f1_f11: tap_dance_f1_f11 {
