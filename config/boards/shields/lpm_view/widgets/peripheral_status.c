@@ -23,13 +23,28 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 // ==================== 图片声明 ====================
 LV_IMG_DECLARE(bunnygirl1);
+LV_IMG_DECLARE(bunnygirl2);
 LV_IMG_DECLARE(bunnygirl3);
+LV_IMG_DECLARE(bunnygirl4);
+LV_IMG_DECLARE(bunnygirl5);
 LV_IMG_DECLARE(bunnygirl6);
+LV_IMG_DECLARE(bunnygirl7);
+LV_IMG_DECLARE(bunnygirl8);
 LV_IMG_DECLARE(bunnygirl9);
+LV_IMG_DECLARE(bunnygirl10);
+LV_IMG_DECLARE(bunnygirl11);
 LV_IMG_DECLARE(bunnygirl12);
+LV_IMG_DECLARE(bunnygirl13);
+LV_IMG_DECLARE(bunnygirl14);
 LV_IMG_DECLARE(bunnygirl15);
+LV_IMG_DECLARE(bunnygirl16);
+LV_IMG_DECLARE(bunnygirl17);
 LV_IMG_DECLARE(bunnygirl18);
+LV_IMG_DECLARE(bunnygirl19);
+LV_IMG_DECLARE(bunnygirl20);
 LV_IMG_DECLARE(bunnygirl21);
+LV_IMG_DECLARE(bunnygirl22);
+LV_IMG_DECLARE(bunnygirl23);
 
 static sys_slist_t widgets = SYS_SLIST_STATIC_INIT(&widgets);
 
@@ -40,11 +55,27 @@ struct peripheral_status_state {
 
 // ==================== 图片数组 ====================
 static const lv_img_dsc_t *bunny_frames[] = {
-    &bunnygirl1,  &bunnygirl3,  &bunnygirl6,  &bunnygirl9,
-    &bunnygirl12, &bunnygirl15, &bunnygirl18, &bunnygirl21,
+    &bunnygirl1,  &bunnygirl2,  &bunnygirl3,  &bunnygirl4,
+    &bunnygirl5,  &bunnygirl6,  &bunnygirl7,  &bunnygirl8,
+    &bunnygirl9,  &bunnygirl10, &bunnygirl11, &bunnygirl12,
+    &bunnygirl13, &bunnygirl14, &bunnygirl15, &bunnygirl16,
+    &bunnygirl17, &bunnygirl18, &bunnygirl19, &bunnygirl20,
+    &bunnygirl21, &bunnygirl22, &bunnygirl23,
 };
 
 #define BUNNY_FRAME_COUNT (sizeof(bunny_frames) / sizeof(bunny_frames[0]))
+
+// ==================== 动画追踪变量 ====================
+static lv_obj_t *anim_img_obj;
+static uint8_t current_frame_index = 0;
+
+// ==================== 动画定时器回调 ====================
+static void anim_timer_cb(lv_timer_t * timer) {
+    // 递增帧索引，到达最大值后重置为 0
+    current_frame_index = (current_frame_index + 1) % BUNNY_FRAME_COUNT;
+    // 更新屏幕上的图片对象
+    lv_img_set_src(anim_img_obj, bunny_frames[current_frame_index]);
+}
 
 // ================= 顶部绘制 =================
 static void draw_top(lv_obj_t *widget, lv_color_t cbuf[], const struct status_state *state) {
@@ -131,13 +162,17 @@ int zmk_widget_status_init(struct zmk_widget_status *widget, lv_obj_t *parent) {
     lv_obj_align(top, LV_ALIGN_BOTTOM_LEFT, 0, 0);
     lv_canvas_set_buffer(top, widget->cbuf, CANVAS_SIZE, CANVAS_SIZE, LV_IMG_CF_TRUE_COLOR);
 
-    // --- 随机选一张图片 ---
-    uint32_t rnd = sys_rand32_get();
-    uint8_t index = rnd % BUNNY_FRAME_COUNT;
+    // --- 初始化动画对象 ---
+    anim_img_obj = lv_img_create(widget->obj);
+    current_frame_index = 0; // 从第 0 帧开始
+    lv_img_set_src(anim_img_obj, bunny_frames[current_frame_index]);
+    lv_obj_align(anim_img_obj, LV_ALIGN_TOP_LEFT, 20, 0);
 
-    lv_obj_t *art = lv_img_create(widget->obj);
-    lv_img_set_src(art, bunny_frames[index]);
-    lv_obj_align(art, LV_ALIGN_TOP_LEFT, 20, 0);
+    // --- 创建动画定时器 (Timer) ---
+    // // 100 毫秒 (ms) 更新一次，相当于 10 FPS。你可以根据观感修改这个数值。
+    // lv_timer_create(anim_timer_cb, 100, NULL);
+    // 1000ms / 24 帧 ≈ 41ms，即实现约 24 FPS 的刷新率
+    lv_timer_create(anim_timer_cb, 41, NULL);
 
     sys_slist_append(&widgets, &widget->node);
     widget_battery_status_init();
