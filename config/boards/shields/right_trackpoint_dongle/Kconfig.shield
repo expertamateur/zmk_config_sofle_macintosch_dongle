@@ -36,7 +36,7 @@ config TRACKPOINT_SCROLL_Y_DIR
 
 config TRACKPOINT_SCROLL_DEADZONE
     int "Scroll deadzone"
-    default 2
+    default 1
     help
       Deadzone to filter out slight hand tremors.
 
@@ -46,7 +46,7 @@ config TRACKPOINT_SCROLL_INPUT_MAX
 
 config TRACKPOINT_SCROLL_DIVISOR_SLOW
     int "Scroll divisor slow (Fine-grained control)"
-    default 60
+    default 30
 
 config TRACKPOINT_SCROLL_DIVISOR_FAST
     int "Scroll divisor fast (Max speed limit)"

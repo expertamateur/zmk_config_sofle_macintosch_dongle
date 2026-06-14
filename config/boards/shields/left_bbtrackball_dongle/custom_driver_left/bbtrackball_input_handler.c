@@ -43,8 +43,10 @@ static struct k_work_q bbtrackball_work_q;
 
 #define MOVE_IDLE_TIMEOUT 30
 
-#define ARROW_TRIGGER_THRESHOLD 4
+#define ARROW_TRIGGER_THRESHOLD 2
 #define ARROW_REPEAT_MS 35
+
+#define SCROLL_DIVISOR 3
 
 /* ===== Runtime State ===== */
 static bool moved;
@@ -53,6 +55,9 @@ static bool arrow_key_pressed;
 
 static int dx_acc;
 static int dy_acc;
+
+static int scroll_residue_x;
+static int scroll_residue_y;
 
 static uint32_t last_move_time;
 static uint32_t last_arrow_trigger;
@@ -184,10 +189,14 @@ static void bbtrackball_work_handler(struct k_work *work) {
         int abs_dy = abs(dy);
 
         if (abs_dx < ARROW_TRIGGER_THRESHOLD && abs_dy < ARROW_TRIGGER_THRESHOLD) {
+            dx_acc += dx;
+            dy_acc += dy;
             return;
         }
 
         if (now - last_arrow_trigger < ARROW_REPEAT_MS) {
+            dx_acc += dx;
+            dy_acc += dy;
             return;
         }
 
@@ -195,9 +204,9 @@ static void bbtrackball_work_handler(struct k_work *work) {
 
         uint16_t key;
         if (abs_dx > abs_dy)
-            key = (dx > 0) ? INPUT_BTN_1 : INPUT_BTN_0;
+            key = (dx > 0) ? INPUT_BTN_0 : INPUT_BTN_1;
         else
-            key = (dy > 0) ? INPUT_BTN_3 : INPUT_BTN_2;
+            key = (dy > 0) ? INPUT_BTN_2 : INPUT_BTN_3;
 
         input_report_key(dev, key, 1, false, K_NO_WAIT);
         input_report_key(dev, key, 0, true, K_NO_WAIT);
@@ -211,8 +220,20 @@ static void bbtrackball_work_handler(struct k_work *work) {
         return;
     }
 
-    input_report_rel(dev, INPUT_REL_HWHEEL, -dx, false, K_NO_WAIT);
-    input_report_rel(dev, INPUT_REL_WHEEL, dy, true, K_NO_WAIT);
+    scroll_residue_x += dx;
+    scroll_residue_y += dy;
+
+    int sx = -(scroll_residue_x / SCROLL_DIVISOR);
+    int sy = scroll_residue_y / SCROLL_DIVISOR;
+
+    if (sx != 0) {
+        scroll_residue_x %= SCROLL_DIVISOR;
+        input_report_rel(dev, INPUT_REL_HWHEEL, sx, false, K_NO_WAIT);
+    }
+    if (sy != 0) {
+        scroll_residue_y %= SCROLL_DIVISOR;
+        input_report_rel(dev, INPUT_REL_WHEEL, sy, true, K_NO_WAIT);
+    }
 }
 
 /* ===== Init ===== */

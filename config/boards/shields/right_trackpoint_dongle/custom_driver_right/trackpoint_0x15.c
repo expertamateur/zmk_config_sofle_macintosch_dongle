@@ -172,7 +172,7 @@ static inline void process_scroll_axis(const struct device *dev, int8_t delta,
     }
 
     /* 阻尼，防止漂移 */
-    *residue = (*residue * 3) / 4;
+    *residue = (*residue * 7) / 8;
 }
 
 /* ========= 工作队列处理（批量读取 + 合并发送） ========= */
