@@ -99,15 +99,17 @@ bool trackball_is_active(void) {
     return (k_uptime_get_32() - last_move_time) < 40;
 }
 
-/* ===== Position listener (仅 pos 61) ===== */
-static int space_listener_cb(const zmk_event_t *eh) {
+/* ===== Position listener ===== */
+static int trackball_key_listener_cb(const zmk_event_t *eh) {
     const struct zmk_position_state_changed *ev = as_zmk_position_state_changed(eh);
     if (!ev) return 0;
 
-    if (ev->position == 34) {
+    /* pos 60 = FN3/BKS → 方向键模式 */
+    if (ev->position == 60) {
         arrow_key_pressed = ev->state;
     }
 
+    /* pos 61 = FN4/DEL → 鼠标移动模式 */
     if (ev->position == 61) {
         space_pressed = ev->state;
     }
@@ -115,8 +117,8 @@ static int space_listener_cb(const zmk_event_t *eh) {
     return 0;
 }
 
-ZMK_LISTENER(space_listener, space_listener_cb);
-ZMK_SUBSCRIPTION(space_listener, zmk_position_state_changed);
+ZMK_LISTENER(trackball_key_listener, trackball_key_listener_cb);
+ZMK_SUBSCRIPTION(trackball_key_listener, zmk_position_state_changed);
 
 /* ===== GPIO interrupt callback ===== */
 static void dir_edge_cb(const struct device *dev, struct gpio_callback *cb, uint32_t pins) {
@@ -204,13 +206,13 @@ static void bbtrackball_work_handler(struct k_work *work) {
     }
 
     if (space_pressed) {
-        input_report_rel(dev, INPUT_REL_HWHEEL, -dx, false, K_NO_WAIT);
-        input_report_rel(dev, INPUT_REL_WHEEL, dy, true, K_NO_WAIT);
+        input_report_rel(dev, INPUT_REL_X, -dx, false, K_NO_WAIT);
+        input_report_rel(dev, INPUT_REL_Y, -dy, true, K_NO_WAIT);
         return;
     }
 
-    input_report_rel(dev, INPUT_REL_X, -dx, false, K_NO_WAIT);
-    input_report_rel(dev, INPUT_REL_Y, -dy, true, K_NO_WAIT);
+    input_report_rel(dev, INPUT_REL_HWHEEL, -dx, false, K_NO_WAIT);
+    input_report_rel(dev, INPUT_REL_WHEEL, dy, true, K_NO_WAIT);
 }
 
 /* ===== Init ===== */
