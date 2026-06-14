@@ -47,6 +47,10 @@
 };
 
 
+&bbtrackball_split {
+    device = <&bbtrackball>;
+};
+
 &bbtrackball_listener {
     status = "okay";
     input-processors = <&zip_temp_layer 3 600>,
