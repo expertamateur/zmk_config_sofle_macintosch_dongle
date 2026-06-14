@@ -34,12 +34,6 @@ static const struct device *const backlight_dev = DEVICE_DT_GET(KEYBOARD_BACKLIG
 #define IDLE_CHECK_INTERVAL_MS 500
 
 #define AUTO_OFF_MIN_MS 1000
-#define AUTO_OFF_MAX_MS 3000
-
-/* ==== WPM ==== */
-#define CHARS_PER_WORD 5.0
-#define WPM_UPDATE_INTERVAL_S 1
-#define WPM_RESET_INTERVAL_S 5
 
 /* ==== State ==== */
 enum bl_state {
@@ -58,15 +52,9 @@ static int64_t last_activity_ms;
 /* RGB edge detect */
 static bool last_rgb_on;
 
-/* WPM */
-static uint32_t key_pressed_count;
-static uint8_t wpm_state;
-static uint8_t wpm_tick;
-
 /* ==== Works ==== */
 static struct k_work_delayable bl_work;
 static struct k_work_delayable idle_work;
-static struct k_work_delayable wpm_work;
 static struct k_work_delayable boot_work;
 
 /* ==== Helpers ==== */
@@ -155,10 +143,7 @@ static void idle_work_handler(struct k_work *work) {
         return;
     }
 
-    int idle_timeout_ms = AUTO_OFF_MIN_MS + ((AUTO_OFF_MAX_MS - AUTO_OFF_MIN_MS) *
-                                             (wpm_state > 100 ? 100 : wpm_state) / 100);
-
-    if (bl_state == BL_ON && now - last_activity_ms > idle_timeout_ms) {
+    if (bl_state == BL_ON && now - last_activity_ms > AUTO_OFF_MIN_MS) {
 
         bl_state = BL_FADING_DOWN;
         k_work_schedule(&bl_work, K_NO_WAIT);
@@ -175,20 +160,6 @@ static void boot_work_handler(struct k_work *work) {
     }
 }
 
-/* ==== WPM ==== */
-static void wpm_work_handler(struct k_work *work) {
-    wpm_tick++;
-
-    wpm_state = (key_pressed_count / CHARS_PER_WORD) / (wpm_tick * WPM_UPDATE_INTERVAL_S / 60.0);
-
-    if (wpm_tick >= WPM_RESET_INTERVAL_S) {
-        wpm_tick = 0;
-        key_pressed_count = 0;
-    }
-
-    k_work_schedule(&wpm_work, K_SECONDS(WPM_UPDATE_INTERVAL_S));
-}
-
 /* ==== Key Event ==== */
 static int kb_listener_cb(const zmk_event_t *eh) {
     const struct zmk_position_state_changed *ev = as_zmk_position_state_changed(eh);
@@ -201,7 +172,6 @@ static int kb_listener_cb(const zmk_event_t *eh) {
 
     if (ev->state) {
         last_activity_ms = k_uptime_get();
-        key_pressed_count++;
 
         if (bl_state == BL_OFF || bl_state == BL_FADING_DOWN) {
             bl_state = BL_FADING_UP;
@@ -230,11 +200,9 @@ static int keyboard_backlight_init(void) {
 
     k_work_init_delayable(&bl_work, bl_work_handler);
     k_work_init_delayable(&idle_work, idle_work_handler);
-    k_work_init_delayable(&wpm_work, wpm_work_handler);
     k_work_init_delayable(&boot_work, boot_work_handler);
 
     k_work_schedule(&idle_work, K_MSEC(IDLE_CHECK_INTERVAL_MS));
-    k_work_schedule(&wpm_work, K_SECONDS(WPM_UPDATE_INTERVAL_S));
 
     if (last_rgb_on) {
         bl_state = BL_FADING_UP;
