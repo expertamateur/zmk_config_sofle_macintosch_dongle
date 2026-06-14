@@ -21,63 +21,30 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #include "peripheral_status.h"
 
-// ==================== 图片声明 ====================
-LV_IMG_DECLARE(bunnygirl1);
-LV_IMG_DECLARE(bunnygirl2);
-LV_IMG_DECLARE(bunnygirl3);
-LV_IMG_DECLARE(bunnygirl4);
-LV_IMG_DECLARE(bunnygirl5);
-LV_IMG_DECLARE(bunnygirl6);
-LV_IMG_DECLARE(bunnygirl7);
-LV_IMG_DECLARE(bunnygirl8);
-LV_IMG_DECLARE(bunnygirl9);
-LV_IMG_DECLARE(bunnygirl10);
-LV_IMG_DECLARE(bunnygirl11);
-LV_IMG_DECLARE(bunnygirl12);
-LV_IMG_DECLARE(bunnygirl13);
-LV_IMG_DECLARE(bunnygirl14);
-LV_IMG_DECLARE(bunnygirl15);
-LV_IMG_DECLARE(bunnygirl16);
-LV_IMG_DECLARE(bunnygirl17);
-LV_IMG_DECLARE(bunnygirl18);
-LV_IMG_DECLARE(bunnygirl19);
-LV_IMG_DECLARE(bunnygirl20);
-LV_IMG_DECLARE(bunnygirl21);
-LV_IMG_DECLARE(bunnygirl22);
-LV_IMG_DECLARE(bunnygirl23);
+LV_IMG_DECLARE(cat);
+LV_IMG_DECLARE(astronaut);
+LV_IMG_DECLARE(macintosch);
+LV_IMG_DECLARE(david);
+LV_IMG_DECLARE(vader);
+LV_IMG_DECLARE(blackhole);
+LV_IMG_DECLARE(plane);
+LV_IMG_DECLARE(mounta);
 
 static sys_slist_t widgets = SYS_SLIST_STATIC_INIT(&widgets);
 
-// ==================== 状态结构体 ====================
 struct peripheral_status_state {
     bool connected;
 };
 
-// ==================== 图片数组 ====================
 static const lv_img_dsc_t *bunny_frames[] = {
-    &bunnygirl1,  &bunnygirl2,  &bunnygirl3,  &bunnygirl4,
-    &bunnygirl5,  &bunnygirl6,  &bunnygirl7,  &bunnygirl8,
-    &bunnygirl9,  &bunnygirl10, &bunnygirl11, &bunnygirl12,
-    &bunnygirl13, &bunnygirl14, &bunnygirl15, &bunnygirl16,
-    &bunnygirl17, &bunnygirl18, &bunnygirl19, &bunnygirl20,
-    &bunnygirl21, &bunnygirl22, &bunnygirl23,
+    &cat, &astronaut, &macintosch, &david, &vader, &blackhole, &plane, &mounta,
 };
 
 #define BUNNY_FRAME_COUNT (sizeof(bunny_frames) / sizeof(bunny_frames[0]))
 
-// ==================== 动画追踪变量 ====================
-static lv_obj_t *anim_img_obj;
-static uint8_t current_frame_index = 0;
+static uint8_t current_img_index;
+static struct k_work_delayable img_switch_work;
 
-// ==================== 动画定时器回调 ====================
-static void anim_timer_cb(lv_timer_t * timer) {
-    // 递增帧索引，到达最大值后重置为 0
-    current_frame_index = (current_frame_index + 1) % BUNNY_FRAME_COUNT;
-    // 更新屏幕上的图片对象
-    lv_img_set_src(anim_img_obj, bunny_frames[current_frame_index]);
-}
-
-// ================= 顶部绘制 =================
 static void draw_top(lv_obj_t *widget, lv_color_t cbuf[], const struct status_state *state) {
     lv_obj_t *canvas = lv_obj_get_child(widget, 0);
 
@@ -87,21 +54,34 @@ static void draw_top(lv_obj_t *widget, lv_color_t cbuf[], const struct status_st
     lv_draw_rect_dsc_t rect_black_dsc;
     init_rect_dsc(&rect_black_dsc, LVGL_BACKGROUND);
 
-    // Fill background
     lv_canvas_draw_rect(canvas, 0, 0, CANVAS_SIZE, CANVAS_SIZE, &rect_black_dsc);
 
-    // Draw battery
     draw_battery(canvas, state);
 
-    // Draw connection icon
     lv_canvas_draw_text(canvas, 0, 0, CANVAS_SIZE, &label_dsc,
                         state->connected ? LV_SYMBOL_WIFI : LV_SYMBOL_CLOSE);
 
-    // Rotate canvas
     rotate_canvas(canvas, cbuf);
 }
 
-// ================= 电池状态 =================
+static void switch_image(struct k_work *work) {
+    struct zmk_widget_status *widget;
+
+    uint8_t new_index;
+    do {
+        new_index = sys_rand32_get() % BUNNY_FRAME_COUNT;
+    } while (new_index == current_img_index);
+
+    current_img_index = new_index;
+
+    SYS_SLIST_FOR_EACH_CONTAINER(&widgets, widget, node) {
+        lv_obj_t *art = lv_obj_get_child(widget->obj, 1);
+        lv_img_set_src(art, bunny_frames[current_img_index]);
+    }
+
+    k_work_schedule(&img_switch_work, K_SECONDS(60));
+}
+
 static void set_battery_status(struct zmk_widget_status *widget,
                                struct battery_status_state state) {
 #if IS_ENABLED(CONFIG_USB_DEVICE_STACK)
@@ -132,7 +112,6 @@ ZMK_SUBSCRIPTION(widget_battery_status, zmk_battery_state_changed);
 ZMK_SUBSCRIPTION(widget_battery_status, zmk_usb_conn_state_changed);
 #endif
 
-// ================= 连接状态 =================
 static struct peripheral_status_state get_state(const zmk_event_t *eh) {
     return (struct peripheral_status_state){.connected = zmk_split_bt_peripheral_is_connected()};
 }
@@ -152,31 +131,31 @@ ZMK_DISPLAY_WIDGET_LISTENER(widget_peripheral_status, struct peripheral_status_s
                             output_status_update_cb, get_state)
 ZMK_SUBSCRIPTION(widget_peripheral_status, zmk_split_peripheral_status_changed);
 
-// ================= 初始化 =================
 int zmk_widget_status_init(struct zmk_widget_status *widget, lv_obj_t *parent) {
     widget->obj = lv_obj_create(parent);
     lv_obj_set_size(widget->obj, 144, 72);
 
-    // --- 顶部 canvas ---
     lv_obj_t *top = lv_canvas_create(widget->obj);
     lv_obj_align(top, LV_ALIGN_BOTTOM_LEFT, 0, 0);
     lv_canvas_set_buffer(top, widget->cbuf, CANVAS_SIZE, CANVAS_SIZE, LV_IMG_CF_TRUE_COLOR);
 
-    // --- 初始化动画对象 ---
-    anim_img_obj = lv_img_create(widget->obj);
-    current_frame_index = 0; // 从第 0 帧开始
-    lv_img_set_src(anim_img_obj, bunny_frames[current_frame_index]);
-    lv_obj_align(anim_img_obj, LV_ALIGN_TOP_LEFT, 20, 0);
+    current_img_index = sys_rand32_get() % BUNNY_FRAME_COUNT;
 
-    // --- 创建动画定时器 (Timer) ---
-    // // 100 毫秒 (ms) 更新一次，相当于 10 FPS。你可以根据观感修改这个数值。
-    // lv_timer_create(anim_timer_cb, 100, NULL);
-    // 1000ms / 24 帧 ≈ 41ms，即实现约 24 FPS 的刷新率
-    lv_timer_create(anim_timer_cb, 41, NULL);
+    lv_obj_t *art = lv_img_create(widget->obj);
+    lv_img_set_src(art, bunny_frames[current_img_index]);
+    lv_obj_align(art, LV_ALIGN_TOP_LEFT, 20, 0);
 
     sys_slist_append(&widgets, &widget->node);
+
     widget_battery_status_init();
     widget_peripheral_status_init();
+
+    static bool work_initialized;
+    if (!work_initialized) {
+        k_work_init_delayable(&img_switch_work, switch_image);
+        k_work_schedule(&img_switch_work, K_SECONDS(60));
+        work_initialized = true;
+    }
 
     return 0;
 }
