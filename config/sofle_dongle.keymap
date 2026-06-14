@@ -241,7 +241,7 @@
 // |  BOOT   | // 该按键在接收器上
 //
 // |  trans  |  trans  |  trans  |  trans  |  trans  |  trans  |  trans  |         |  trans  |  trans  |  trans  |  trans  |  trans  |  trans  |  trans  |
-// |  trans  |  trans  |  trans  |  trans  |  trans  |  trans  |                             |  trans  |  trans  |  trans  |  trans  |  trans  |  trans  |
+// |  trans  |  trans  |  trans  |  trans  |  trans  |  trans  |                             |  MCLK   |  trans  |  trans  |  trans  |  trans  |  trans  |
 // |  trans  |  trans  |  trans  |  trans  |  RCLK   |  LCLK   |  trans  |         |  trans  |  LCLK   |  RCLK   |  trans  |  trans  |  trans  |  trans  |
 // |  trans  |  trans  |  trans  |  trans  |  trans  |  trans  |TRNS|TRNS|         |TRNS|TRNS|  trans  |  trans  |  trans  |  trans  |  trans  |  trans  |
 //                     |  trans  |  trans  |  trans  |  trans  |  trans  |         |  SPACE  |  trans  |  trans  |  trans  |  trans  |
@@ -251,7 +251,7 @@
             bindings = <
 &bootloader
 &trans       &trans          &trans          &trans           &trans     &trans     &trans     &trans  &trans     &trans     &trans  &trans  &trans  &trans
-&trans       &trans          &trans          &trans           &trans     &trans     &trans     &trans  &trans     &trans     &trans  &trans
+&trans       &trans          &trans          &trans           &trans     &trans     &trans     &trans  &mkp MCLK  &trans     &trans  &trans
 &trans       &trans          &trans          &trans           &mkp RCLK  &mkp LCLK  &trans     &trans  &mkp LCLK  &mkp RCLK  &trans  &trans  &trans  &trans
 &trans       &trans          &trans          &trans           &trans     &trans     &trans     &trans  &trans     &trans     &trans  &trans  &trans  &trans  &trans  &trans
 &trans       &trans          &trans          &trans           &trans     &trans     &kp SPACE  &trans  &trans     &trans
