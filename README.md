@@ -107,7 +107,7 @@
 // |   USB   |   BT0   |   BT1   |   BT2   |   BT3   |   BT4   |   PWR   |         |   SLP   |  none   |  none   |  none   |  none   |  none   | BT_CLR  |
 // |  none   |  HOME   |    ↑    |   END   |  none   |  none   |                             |  none   |  none   |  none   |  none   |  none   |  none   |
 // |  none   |    ←    |    ↓    |    →    |  none   |  none   |  none   |         |  none   |  LCLK   |  RCLK   |  none   |  none   |  none   |  none   |
-// |  trans  |  PGUP   |   INS   |  PGDN   |  none   |  none   |NONE|NONE|         |NONE|NONE|  none   |  none   |  none   |  none   |  none   |  none   |
+// |  trans  |  PGUP   |   INS   |  PGDN   |  none   |  none   |TRNS|TRNS|         |TRNS|TRNS|  MCLK   |  S+C+A  |  none   |  none   |  none   |  none   |
 //                     |  trans  |  trans  |  trans  |  trans  |  trans  |         |  trans  |  trans  |  trans  |  trans  |  trans  |
 // -----------------------------------------------------------------------------------------------------------------------------------------------------------
 ```
@@ -127,10 +127,10 @@
 // [ Layer 3 : Function ]
 // |  BOOT   | // 该按键在接收器上
 //
-// |   F12   |   F1   |   F2   |   F3   |   F4   |   F5   |  none  |         |  none  |   F6   |   F7   |   F8   |   F9   |  F10   |  F11  |
-// |   F12   |  F11   |  F12   |  F13   |  F14   |  F15   |                             |  F16   |  F17   |  F18   |  F19   |  F20   |  F21  |
-// |  CAPS   |  F21   |  F22   |  F23   |  F24   |  PRSC   |  none  |         |  none  | LCLK  | RCLK  |  none  |  none  |  none  |NUM_LCK|
-// |  trans  |  none  | S(DEL) | C(INS) | S(INS) | S+C+A |NONE|NONE|         |NONE|NONE|  none  |  none  |  none  |  none  |  RGB  |  trans  |
+// |   F12   |   F1    |   F2    |   F3    |   F4    |   F5    |  none   |         |  none   |   F6    |   F7    |   F8    |   F9    |   F10   |   F11   |
+// |   F12   |   F11   |   F12   |   F13   |   F14   |   F15   |                             |   F16   |   F17   |   F18   |   F19   |   F20   |   F21   |
+// |  CAPS   |   F21   |   F22   |   F23   |   F24   |  PRSC   |  none   |         |  none   |  LCLK   |  RCLK   |  none   |  none   |  none   | NUM_LCK |
+// |  trans  |  none   | S(DEL)  | C(INS)  | S(INS)  |  S+C+A  |TRNS|TRNS|         |TRNS|TRNS|  MCLK   |  S+C+A  |  none   |  none   |  none   |  trans  |
 //                     |  trans  |  trans  |  trans  |  trans  |  trans  |         |  trans  |  trans  |  trans  |  trans  |  trans  |
 // -----------------------------------------------------------------------------------------------------------------------------------------------------------
 ```
@@ -138,22 +138,24 @@
 ### 鼠标层设计
 - 右手单手进入鼠标层配合小红点可以单手操作鼠标。
   - 不进入鼠标层时，小红点则为滚轮。
+  - 鼠标层右手区在 N、M 位置提供中键（MCLK）和 Shift+Ctrl+Alt 组合键（S+C+A），与方向键层/Fn 层右手布局一致，左手可在其他层无缝操作鼠标。
 - 左手大量单手操作都可以不受右手切层影响，这里不过多进行介绍。
   - 左手的方向层不受影响。
   - 左手的fn层不受影响。
 
 ## 鼠标层布局
 ```
+        // 目前鼠标层的设计主要是为了配合左手键区的方向键层，以及ctrl c ctrl v ctrl x，但是无法使用fn层的万能复制粘贴键。
 // -----------------------------------------------------------------------------------------------------------------------------------------------------------
 // [ Layer 4 : Mouse ]
 // |  BOOT   | // 该按键在接收器上
 //
 // |  trans  |  trans  |  trans  |  trans  |  trans  |  trans  |  trans  |         |  trans  |  trans  |  trans  |  trans  |  trans  |  trans  |  trans  |
 // |  trans  |  trans  |  trans  |  trans  |  trans  |  trans  |                             |  trans  |  trans  |  trans  |  trans  |  trans  |  trans  |
-// |  trans  |  trans  |  trans  |  trans  |  RCLK   |  LCLK   |  trans  |         |  trans  | LCLK   | RCLK   |  trans  |  trans  |  trans  |  trans  |
-// |  trans  |  trans  |  trans  |  trans  |  trans  |  trans  |TRNS|TRNS|         |TRNS|TRNS|  trans  |  trans  |  trans  |  trans  |  trans  |  trans  |
-//                     |  trans  |  trans  |  trans  |  trans  |  trans  |         | SPACE  |  trans  |  trans  |  trans  |  trans  |
-// -----------------------------------------------------------------------------------------------------------------------------------------------------------```
+// |  trans  |  trans  |  trans  |  trans  |  RCLK   |  LCLK   |  trans  |         |  trans  |  LCLK   |  RCLK   |  trans  |  trans  |  trans  |  trans  |
+// |  trans  |  trans  |  trans  |  trans  |  trans  |  trans  |TRNS|TRNS|         |TRNS|TRNS|  MCLK   |  S+C+A  |  trans  |  trans  |  trans  |  trans  |
+//                     |  trans  |  trans  |  trans  |  trans  |  trans  |         |  trans  |  SPACE  |  trans  |  trans  |  trans  |
+// -----------------------------------------------------------------------------------------------------------------------------------------------------------
 ```
 
 ## 完整键盘布局 (Keymap)
