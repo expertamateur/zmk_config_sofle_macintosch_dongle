@@ -1,3 +1,9 @@
+/*
+ * TrackPoint HID over I2C Driver — Dongle fusion version
+ * Stability infra from ZitaoTech + toggle-key mode preserved.
+ * SPDX-License-Identifier: MIT
+ */
+
 #define DT_DRV_COMPAT zmk_trackpoint
 
 #include <zephyr/kernel.h>
@@ -18,6 +24,20 @@
 
 LOG_MODULE_REGISTER(trackpoint, LOG_LEVEL_DBG);
 
+/* ===== Dedicated Work Queue ===== */
+#define TP_WORKQ_STACK_SIZE 2048
+#define TP_WORKQ_PRIORITY 5
+
+K_THREAD_STACK_DEFINE(tp_workq_stack, TP_WORKQ_STACK_SIZE);
+static struct k_work_q tp_workq;
+
+/* ===== I2C Mutex ===== */
+static struct k_mutex trackpoint_i2c_mutex;
+
+/* ===== Watchdog ===== */
+static uint32_t last_activity_time;
+#define TRACKPOINT_WDT_TIMEOUT 200
+
 /* ========================================================================= */
 /* 鼠标与滚轮可调参数 (已映射至 Kconfig，用户可在 .conf 中配置)                 */
 /* ========================================================================= */
@@ -36,7 +56,7 @@ LOG_MODULE_REGISTER(trackpoint, LOG_LEVEL_DBG);
 #define DOMINANT_NUMERATOR CONFIG_TRACKPOINT_DOMINANT_NUMERATOR
 #define DOMINANT_DENOMINATOR CONFIG_TRACKPOINT_DOMINANT_DENOMINATOR
 
-// --- 鼠标指针基础配置 (Kconfig 为整数百分比，这里除以 100 转为浮点数) ---
+// --- 鼠标指针基础配置 ---
 #define MOUSE_BASE_SPEED (CONFIG_TRACKPOINT_MOUSE_BASE_SPEED_PERCENT / 100.0f)
 #define MOUSE_SENS_BASE (CONFIG_TRACKPOINT_MOUSE_SENS_BASE_PERCENT / 100.0f)
 #define MOUSE_SENS_STEP (CONFIG_TRACKPOINT_MOUSE_SENS_STEP_PERCENT / 100.0f)
@@ -51,18 +71,17 @@ LOG_MODULE_REGISTER(trackpoint, LOG_LEVEL_DBG);
 #define MOTION_GPIO_PIN 14
 #define MOTION_GPIO_FLAGS (GPIO_ACTIVE_LOW | GPIO_PULL_UP)
 
-// 模式切换按键位置
-#define TOGGLE_POSITION_CODE CONFIG_TRACKPOINT_TOGGLE_KEY_POSITION 
+#define TOGGLE_POSITION_CODE CONFIG_TRACKPOINT_TOGGLE_KEY_POSITION
 
 /* ========= 全局状态 ========= */
-static bool toggle_key_pressed = false;
+static bool toggle_key_pressed;
 
-/* ========= 模式切换按键监听 ========= */
+/* ========= 模式切换按键监听（保留 Dongle toggle 逻辑） ========= */
 static int toggle_listener_cb(const zmk_event_t *eh) {
     const struct zmk_position_state_changed *ev = as_zmk_position_state_changed(eh);
     if (!ev) return 0;
 
-    if (ev->position == TOGGLE_POSITION_CODE) { 
+    if (ev->position == TOGGLE_POSITION_CODE) {
         toggle_key_pressed = ev->state;
     }
     return 0;
@@ -79,9 +98,10 @@ struct trackpoint_data {
     const struct device *dev;
     struct k_work work;
     struct gpio_callback motion_cb_data;
+    struct k_work_delayable enable_irq_work;
     uint32_t last_packet_time;
-    int16_t scroll_residue_x; // 横向滚轮累加器
-    int16_t scroll_residue_y; // 纵向滚轮累加器
+    int16_t scroll_residue_x;
+    int16_t scroll_residue_y;
 };
 
 /* ========= 指数加速计算 ========= */
@@ -100,12 +120,17 @@ static inline float trackpoint_exponential_factor(int8_t dx, int8_t dy, uint32_t
 }
 #endif
 
-/* ========= 读取数据包 ========= */
+/* ========= 读取数据包（I2C mutex 保护） ========= */
 static int trackpoint_read_packet(const struct device *dev, int8_t *dx, int8_t *dy) {
     const struct trackpoint_config *cfg = dev->config;
     uint8_t buf[TRACKPOINT_PACKET_LEN] = {0};
 
+    k_mutex_lock(&trackpoint_i2c_mutex, K_NO_WAIT);
+
     int ret = i2c_read_dt(&cfg->i2c, buf, TRACKPOINT_PACKET_LEN);
+
+    k_mutex_unlock(&trackpoint_i2c_mutex);
+
     if (ret < 0) return ret;
 
     if (buf[0] != TRACKPOINT_MAGIC_BYTE0) return -EIO;
@@ -115,91 +140,134 @@ static int trackpoint_read_packet(const struct device *dev, int8_t *dx, int8_t *
     return 0;
 }
 
-/* ========= ★ 抽象复用：滚轮单轴处理函数 ========= */
-static inline void process_scroll_axis(const struct device *dev, int8_t delta, int16_t *residue, uint16_t input_code, int8_t dir_mult) {
+/* ========= 滚轮单轴处理（t² 曲线 + 阻尼） ========= */
+static inline void process_scroll_axis(const struct device *dev, int8_t delta,
+                                        int16_t *residue, uint16_t input_code, int8_t dir_mult) {
     int abs_delta = abs(delta);
 
     if (abs_delta <= SCROLL_DEADZONE) {
-        *residue = 0; 
-        return;
+        return; /* 保留残留值，不丢滚动连续性 */
     }
 
     if (abs_delta > SCROLL_INPUT_MAX) {
         abs_delta = SCROLL_INPUT_MAX;
     }
 
-    int divisor = SCROLL_DIVISOR_SLOW - 
-                  ((SCROLL_DIVISOR_SLOW - SCROLL_DIVISOR_FAST) * abs_delta) / SCROLL_INPUT_MAX;
+    /* 非线性 t² 除数曲线 */
+    float t = (float)abs_delta / SCROLL_INPUT_MAX;
+    t = t * t;
+    float f_div = SCROLL_DIVISOR_SLOW - (SCROLL_DIVISOR_SLOW - SCROLL_DIVISOR_FAST) * t;
 
+    int divisor = (int)f_div;
     if (divisor < 1) divisor = 1;
 
     *residue += (delta * dir_mult);
 
     int16_t scroll_ticks = *residue / divisor;
     if (scroll_ticks != 0) {
-        input_report_rel(dev, input_code, scroll_ticks, true, K_FOREVER);
+        input_report_rel(dev, input_code, scroll_ticks, true, K_NO_WAIT);
         *residue %= divisor;
     }
+
+    /* 阻尼，防止漂移 */
+    *residue = (*residue * 3) / 4;
 }
 
-/* ========= 工作队列处理 ========= */
+/* ========= 工作队列处理（单次读取 + 看门狗） ========= */
 static void trackpoint_work_cb(struct k_work *work) {
     struct trackpoint_data *data = CONTAINER_OF(work, struct trackpoint_data, work);
     const struct device *dev = data->dev;
-    const struct trackpoint_config *cfg = dev->config;
 
-    while (gpio_pin_get_dt(&cfg->motion_gpio) > 0) {
-        int8_t dx = 0, dy = 0;
+    uint32_t now = k_uptime_get_32();
 
-        if (trackpoint_read_packet(dev, &dx, &dy) == 0) {
-            uint32_t now = k_uptime_get_32();
+    /* ===== 看门狗恢复 ===== */
+    if (now - last_activity_time > TRACKPOINT_WDT_TIMEOUT) {
+        LOG_WRN("TrackPoint watchdog recovery");
+        data->scroll_residue_x = 0;
+        data->scroll_residue_y = 0;
+        return;
+    }
 
-            bool is_scroll_mode = IS_ENABLED(CONFIG_TRACKPOINT_START_IN_SCROLL_MODE) ? !toggle_key_pressed : toggle_key_pressed;
+    /* ===== 单次读取（不 while 循环） ===== */
+    int8_t dx = 0, dy = 0;
+    int ret = trackpoint_read_packet(dev, &dx, &dy);
 
-            if (is_scroll_mode) {
-                /* 1. 主导轴锁定防误触 */
-                int abs_dx = abs(dx);
-                int abs_dy = abs(dy);
+    if (ret != 0) {
+        LOG_WRN("TrackPoint I2C read failed (soft recover)");
+        data->scroll_residue_x = 0;
+        data->scroll_residue_y = 0;
+        return;
+    }
 
-                if (abs_dy * DOMINANT_DENOMINATOR > abs_dx * DOMINANT_NUMERATOR) {
-                    dx = 0; // 纯竖向滚动
-                } else if (abs_dx * DOMINANT_DENOMINATOR > abs_dy * DOMINANT_NUMERATOR) {
-                    dy = 0; // 纯横向滚动
-                } else {
-                    dx = 0; // 对角线死区，双轴丢弃
-                    dy = 0; 
-                }
+    last_activity_time = now;
 
-                process_scroll_axis(dev, dx, &data->scroll_residue_x, INPUT_REL_HWHEEL, SCROLL_X_DIR);
-                process_scroll_axis(dev, dy, &data->scroll_residue_y, INPUT_REL_WHEEL, SCROLL_Y_DIR);
+    /* ===== 模式判定（保留 Dongle toggle 逻辑） ===== */
+    bool is_scroll_mode = IS_ENABLED(CONFIG_TRACKPOINT_START_IN_SCROLL_MODE)
+                          ? !toggle_key_pressed
+                          : toggle_key_pressed;
 
-            } else {
-                uint8_t tp_led_brt = custom_led_get_last_valid_brightness();
-                float tp_factor = MOUSE_SENS_BASE + MOUSE_SENS_STEP * tp_led_brt;
+    if (is_scroll_mode) {
+        /* 进入滚轮模式时用当前位移初始化残留值 */
+        if (data->last_packet_time == 0 ||
+            now - data->last_packet_time > 500) {
+            data->scroll_residue_x = dx * SCROLL_X_DIR;
+            data->scroll_residue_y = dy * SCROLL_Y_DIR;
+        }
+
+        /* 主导轴锁定防误触 */
+        int abs_dx = abs(dx);
+        int abs_dy = abs(dy);
+
+        if (abs_dy * DOMINANT_DENOMINATOR > abs_dx * DOMINANT_NUMERATOR) {
+            dx = 0;
+        } else if (abs_dx * DOMINANT_DENOMINATOR > abs_dy * DOMINANT_NUMERATOR) {
+            dy = 0;
+        } else {
+            dx = 0;
+            dy = 0;
+        }
+
+        process_scroll_axis(dev, dx, &data->scroll_residue_x, INPUT_REL_HWHEEL, SCROLL_X_DIR);
+        process_scroll_axis(dev, dy, &data->scroll_residue_y, INPUT_REL_WHEEL, SCROLL_Y_DIR);
+
+    } else {
+        uint8_t tp_led_brt = custom_led_get_last_valid_brightness();
+        float tp_factor = MOUSE_SENS_BASE + MOUSE_SENS_STEP * tp_led_brt;
 
 #ifdef CONFIG_TRACKPOINT_EXPONENTIAL
-                uint32_t delta = now - data->last_packet_time;
-                float exp_mult = trackpoint_exponential_factor(dx, dy, delta);
+        uint32_t delta = now - data->last_packet_time;
+        float exp_mult = trackpoint_exponential_factor(dx, dy, delta);
 #else
-                float exp_mult = 1.0f;
+        float exp_mult = 1.0f;
 #endif
-                float fx = dx * MOUSE_BASE_SPEED * tp_factor * exp_mult;
-                float fy = dy * MOUSE_BASE_SPEED * tp_factor * exp_mult;
+        float fx = dx * MOUSE_BASE_SPEED * tp_factor * exp_mult;
+        float fy = dy * MOUSE_BASE_SPEED * tp_factor * exp_mult;
 
-                input_report_rel(dev, INPUT_REL_X, -(int)fx, false, K_FOREVER);
-                input_report_rel(dev, INPUT_REL_Y, -(int)fy, true, K_FOREVER);
-            }
-            data->last_packet_time = now;
-        } else {
-            break; 
-        }
+        input_report_rel(dev, INPUT_REL_X, -(int)fx, false, K_NO_WAIT);
+        input_report_rel(dev, INPUT_REL_Y, -(int)fy, true, K_NO_WAIT);
     }
+    data->last_packet_time = now;
 }
 
-/* ========= 硬件中断 ISR ========= */
+/* ========= GPIO 中断 ISR ========= */
 static void motion_isr(const struct device *port, struct gpio_callback *cb, uint32_t pins) {
     struct trackpoint_data *data = CONTAINER_OF(cb, struct trackpoint_data, motion_cb_data);
-    k_work_submit(&data->work);
+
+    last_activity_time = k_uptime_get_32();
+
+    k_work_submit_to_queue(&tp_workq, &data->work);
+}
+
+/* ========= 延迟 IRQ 启用回调 ========= */
+static void trackpoint_enable_irq_work_cb(struct k_work *work) {
+    struct k_work_delayable *dwork = CONTAINER_OF(work, struct k_work_delayable, work);
+    struct trackpoint_data *data = CONTAINER_OF(dwork, struct trackpoint_data, enable_irq_work);
+    const struct device *dev = data->dev;
+    const struct trackpoint_config *cfg = dev->config;
+
+    gpio_pin_interrupt_configure_dt(&cfg->motion_gpio, GPIO_INT_EDGE_TO_ACTIVE);
+
+    LOG_INF("TrackPoint IRQ enabled (delayed)");
 }
 
 /* ========= 初始化函数 ========= */
@@ -210,18 +278,28 @@ static int trackpoint_init(const struct device *dev) {
     if (!i2c_is_ready_dt(&cfg->i2c)) return -ENODEV;
     if (!gpio_is_ready_dt(&cfg->motion_gpio)) return -ENODEV;
 
+    k_mutex_init(&trackpoint_i2c_mutex);
+
     data->dev = dev;
     data->scroll_residue_x = 0;
     data->scroll_residue_y = 0;
     data->last_packet_time = k_uptime_get_32();
     k_work_init(&data->work, trackpoint_work_cb);
 
+    /* 启动独立 Work Queue */
+    k_work_queue_start(&tp_workq, tp_workq_stack,
+                       K_THREAD_STACK_SIZEOF(tp_workq_stack),
+                       TP_WORKQ_PRIORITY, NULL);
+
     gpio_pin_configure_dt(&cfg->motion_gpio, GPIO_INPUT);
-    gpio_pin_interrupt_configure_dt(&cfg->motion_gpio, GPIO_INT_EDGE_TO_ACTIVE);
+    /* IRQ 延迟 200ms 启用，避免开机误触发 */
     gpio_init_callback(&data->motion_cb_data, motion_isr, BIT(cfg->motion_gpio.pin));
     gpio_add_callback(cfg->motion_gpio.port, &data->motion_cb_data);
 
-    LOG_INF("TrackPoint Driver Initialized with Interrupts");
+    k_work_init_delayable(&data->enable_irq_work, trackpoint_enable_irq_work_cb);
+    k_work_schedule(&data->enable_irq_work, K_MSEC(200));
+
+    LOG_INF("TrackPoint Driver Initialized (IRQ delayed)");
     return 0;
 }
 

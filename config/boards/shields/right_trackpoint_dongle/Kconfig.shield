@@ -8,7 +8,7 @@ menu "TrackPoint Advanced Settings"
 
 config TRACKPOINT_EXPONENTIAL
     bool "Enable TrackPoint exponential acceleration"
-    default n
+    default y
     help
       Enable exponential acceleration for TrackPoint movement,
       similar to trackball behavior.

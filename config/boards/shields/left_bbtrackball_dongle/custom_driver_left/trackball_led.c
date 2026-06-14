@@ -112,7 +112,7 @@ static void fade_out_handler(struct k_work *work) {
 static void off_handler(struct k_work *work) {
     ARG_UNUSED(work);
 
-    if (caps_on || trackball_is_moving())
+    if (caps_on || trackball_is_active())
         return;
 
     fade_in_active = false;
@@ -160,7 +160,7 @@ static void anim_handler(struct k_work *work) {
 static void poll_handler(struct k_work *work) {
     ARG_UNUSED(work);
 
-    bool moving = trackball_is_moving();
+    bool moving = trackball_is_active();
     uint8_t ug_brt = zmk_rgb_underglow_calc_brt(0).b;
 
     /* fade_out 中禁止任何点亮 */
