@@ -43,6 +43,7 @@
     bbtrackball_listener: bbtrackball_listener {
         compatible = "zmk,input-listener";
         status = "disabled";
+        device = <&bbtrackball>;
     };
 };
 

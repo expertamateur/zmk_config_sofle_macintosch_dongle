@@ -46,11 +46,11 @@ config TRACKPOINT_SCROLL_INPUT_MAX
 
 config TRACKPOINT_SCROLL_DIVISOR_SLOW
     int "Scroll divisor slow (Fine-grained control)"
-    default 30
+    default 24
 
 config TRACKPOINT_SCROLL_DIVISOR_FAST
     int "Scroll divisor fast (Max speed limit)"
-    default 8
+    default 6
 
 config TRACKPOINT_DOMINANT_NUMERATOR
     int "Dominant axis numerator for accidental touch prevention"

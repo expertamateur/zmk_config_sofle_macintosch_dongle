@@ -46,7 +46,7 @@ static struct k_work_q bbtrackball_work_q;
 #define ARROW_TRIGGER_THRESHOLD 2
 #define ARROW_REPEAT_MS 35
 
-#define SCROLL_DIVISOR 3
+#define SCROLL_DIVISOR 6
 
 /* ===== Runtime State ===== */
 static bool moved;

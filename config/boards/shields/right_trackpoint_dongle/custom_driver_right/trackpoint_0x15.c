@@ -142,22 +142,21 @@ static int trackpoint_read_packet(const struct device *dev, int8_t *dx, int8_t *
     return 0;
 }
 
-/* ========= 滚轮单轴处理（t² 曲线 + 阻尼） ========= */
+/* ========= 滚轮单轴处理（线性曲线，无阻尼，看门狗防漂移） ========= */
 static inline void process_scroll_axis(const struct device *dev, int8_t delta,
                                         int16_t *residue, uint16_t input_code, int8_t dir_mult) {
     int abs_delta = abs(delta);
 
     if (abs_delta <= SCROLL_DEADZONE) {
-        return; /* 保留残留值，不丢滚动连续性 */
+        return;
     }
 
     if (abs_delta > SCROLL_INPUT_MAX) {
         abs_delta = SCROLL_INPUT_MAX;
     }
 
-    /* 非线性 t² 除数曲线 */
+    /* 线性除数曲线：力度越大除数越小，加速更灵敏 */
     float t = (float)abs_delta / SCROLL_INPUT_MAX;
-    t = t * t;
     float f_div = SCROLL_DIVISOR_SLOW - (SCROLL_DIVISOR_SLOW - SCROLL_DIVISOR_FAST) * t;
 
     int divisor = (int)f_div;
@@ -170,9 +169,6 @@ static inline void process_scroll_axis(const struct device *dev, int8_t delta,
         input_report_rel(dev, input_code, scroll_ticks, true, K_NO_WAIT);
         *residue %= divisor;
     }
-
-    /* 阻尼，防止漂移 */
-    *residue = (*residue * 7) / 8;
 }
 
 /* ========= 工作队列处理（批量读取 + 合并发送） ========= */
