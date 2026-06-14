@@ -71,6 +71,8 @@ static uint32_t last_activity_time;
 #define MOTION_GPIO_PIN 14
 #define MOTION_GPIO_FLAGS (GPIO_ACTIVE_LOW | GPIO_PULL_UP)
 
+#define MAX_PACKETS_PER_WORK 5
+
 #define TOGGLE_POSITION_CODE CONFIG_TRACKPOINT_TOGGLE_KEY_POSITION
 
 /* ========= 全局状态 ========= */
@@ -173,10 +175,11 @@ static inline void process_scroll_axis(const struct device *dev, int8_t delta,
     *residue = (*residue * 3) / 4;
 }
 
-/* ========= 工作队列处理（单次读取 + 看门狗） ========= */
+/* ========= 工作队列处理（批量读取 + 合并发送） ========= */
 static void trackpoint_work_cb(struct k_work *work) {
     struct trackpoint_data *data = CONTAINER_OF(work, struct trackpoint_data, work);
     const struct device *dev = data->dev;
+    const struct trackpoint_config *cfg = dev->config;
 
     uint32_t now = k_uptime_get_32();
 
@@ -188,14 +191,21 @@ static void trackpoint_work_cb(struct k_work *work) {
         return;
     }
 
-    /* ===== 单次读取（不 while 循环） ===== */
-    int8_t dx = 0, dy = 0;
-    int ret = trackpoint_read_packet(dev, &dx, &dy);
+    /* ===== 批量读取（最多 MAX_PACKETS_PER_WORK 个包） ===== */
+    int32_t sum_dx = 0, sum_dy = 0;
+    int packets = 0;
 
-    if (ret != 0) {
-        LOG_WRN("TrackPoint I2C read failed (soft recover)");
-        data->scroll_residue_x = 0;
-        data->scroll_residue_y = 0;
+    while (packets < MAX_PACKETS_PER_WORK && gpio_pin_get_dt(&cfg->motion_gpio) > 0) {
+        int8_t dx = 0, dy = 0;
+        if (trackpoint_read_packet(dev, &dx, &dy) != 0) {
+            break;
+        }
+        sum_dx += dx;
+        sum_dy += dy;
+        packets++;
+    }
+
+    if (packets == 0) {
         return;
     }
 
@@ -210,25 +220,27 @@ static void trackpoint_work_cb(struct k_work *work) {
         /* 进入滚轮模式时用当前位移初始化残留值 */
         if (data->last_packet_time == 0 ||
             now - data->last_packet_time > 500) {
-            data->scroll_residue_x = dx * SCROLL_X_DIR;
-            data->scroll_residue_y = dy * SCROLL_Y_DIR;
+            data->scroll_residue_x = (int16_t)(sum_dx * SCROLL_X_DIR);
+            data->scroll_residue_y = (int16_t)(sum_dy * SCROLL_Y_DIR);
         }
 
         /* 主导轴锁定防误触 */
-        int abs_dx = abs(dx);
-        int abs_dy = abs(dy);
+        int abs_x = abs(sum_dx);
+        int abs_y = abs(sum_dy);
 
-        if (abs_dy * DOMINANT_DENOMINATOR > abs_dx * DOMINANT_NUMERATOR) {
-            dx = 0;
-        } else if (abs_dx * DOMINANT_DENOMINATOR > abs_dy * DOMINANT_NUMERATOR) {
-            dy = 0;
+        if (abs_y * DOMINANT_DENOMINATOR > abs_x * DOMINANT_NUMERATOR) {
+            sum_dx = 0;
+        } else if (abs_x * DOMINANT_DENOMINATOR > abs_y * DOMINANT_NUMERATOR) {
+            sum_dy = 0;
         } else {
-            dx = 0;
-            dy = 0;
+            sum_dx = 0;
+            sum_dy = 0;
         }
 
-        process_scroll_axis(dev, dx, &data->scroll_residue_x, INPUT_REL_HWHEEL, SCROLL_X_DIR);
-        process_scroll_axis(dev, dy, &data->scroll_residue_y, INPUT_REL_WHEEL, SCROLL_Y_DIR);
+        process_scroll_axis(dev, (int8_t)CLAMP(sum_dx, -128, 127),
+                            &data->scroll_residue_x, INPUT_REL_HWHEEL, SCROLL_X_DIR);
+        process_scroll_axis(dev, (int8_t)CLAMP(sum_dy, -128, 127),
+                            &data->scroll_residue_y, INPUT_REL_WHEEL, SCROLL_Y_DIR);
 
     } else {
         uint8_t tp_led_brt = custom_led_get_last_valid_brightness();
@@ -236,12 +248,13 @@ static void trackpoint_work_cb(struct k_work *work) {
 
 #ifdef CONFIG_TRACKPOINT_EXPONENTIAL
         uint32_t delta = now - data->last_packet_time;
-        float exp_mult = trackpoint_exponential_factor(dx, dy, delta);
+        float exp_mult = trackpoint_exponential_factor((int8_t)CLAMP(sum_dx, -128, 127),
+                                                        (int8_t)CLAMP(sum_dy, -128, 127), delta);
 #else
         float exp_mult = 1.0f;
 #endif
-        float fx = dx * MOUSE_BASE_SPEED * tp_factor * exp_mult;
-        float fy = dy * MOUSE_BASE_SPEED * tp_factor * exp_mult;
+        float fx = sum_dx * MOUSE_BASE_SPEED * tp_factor * exp_mult;
+        float fy = sum_dy * MOUSE_BASE_SPEED * tp_factor * exp_mult;
 
         input_report_rel(dev, INPUT_REL_X, -(int)fx, false, K_NO_WAIT);
         input_report_rel(dev, INPUT_REL_Y, -(int)fy, true, K_NO_WAIT);
