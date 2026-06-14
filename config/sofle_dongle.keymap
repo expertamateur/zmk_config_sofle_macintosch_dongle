@@ -14,13 +14,6 @@
 #include <dt-bindings/zmk/rgb.h>
 #include <dt-bindings/input/input-event-codes.h>
 
-#define BT_FORCE_MACRO(slot) \
-    bt_out##slot: bt_out##slot { \
-        compatible = "zmk,behavior-macro"; \
-        #binding-cells = <0>; \
-        bindings = <&out OUT_BLE>, <&bt BT_SEL slot>; \
-    }
-
 / {
     input_processors {
         zip_temp_layer: zip_temp_layer {
@@ -116,11 +109,7 @@
     };
 
     macros {
-        BT_FORCE_MACRO(0);
-        BT_FORCE_MACRO(1);
-        BT_FORCE_MACRO(2);
-        BT_FORCE_MACRO(3);
-        BT_FORCE_MACRO(4);
+        #include "bt_force_macros.dtsi"
 
         shift_contrl_alt: shift_contrl_alt {
             compatible = "zmk,behavior-macro";

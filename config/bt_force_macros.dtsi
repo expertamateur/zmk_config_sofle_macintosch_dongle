@@ -1,0 +1,16 @@
+/*
+ * BT_FORCE_MACRO — 独立文件，keymap editor 不解析 C 宏，分离以避免自动排版破坏。
+ * 在 keymap 的 macros 块中用 #include 引入。
+ */
+#define BT_FORCE_MACRO(slot) \
+    bt_out##slot: bt_out##slot { \
+        compatible = "zmk,behavior-macro"; \
+        #binding-cells = <0>; \
+        bindings = <&out OUT_BLE>, <&bt BT_SEL slot>; \
+    }
+
+BT_FORCE_MACRO(0);
+BT_FORCE_MACRO(1);
+BT_FORCE_MACRO(2);
+BT_FORCE_MACRO(3);
+BT_FORCE_MACRO(4);
