@@ -12,12 +12,49 @@
 #include <dt-bindings/zmk/backlight.h>
 #include <dt-bindings/zmk/ext_power.h>
 #include <dt-bindings/zmk/rgb.h>
+#include <dt-bindings/input/input-event-codes.h>
 
 #define FUNC 1
 #define RES 2
 #define BOT bootloader
 
 / {
+    input_processors {
+        zip_temp_layer: zip_temp_layer {
+            compatible = "zmk,input-processor-temp-layer";
+            #input-processor-cells = <2>;
+        };
+
+        ip_behaviors0: ip_behaviors0 {
+            compatible = "zmk,input-processor-behaviors";
+            #input-processor-cells = <0>;
+            type = <INPUT_EV_KEY>;
+            codes = <INPUT_BTN_0>;
+            bindings = <&kp RIGHT>;
+        };
+        ip_behaviors1: ip_behaviors1 {
+            compatible = "zmk,input-processor-behaviors";
+            #input-processor-cells = <0>;
+            type = <INPUT_EV_KEY>;
+            codes = <INPUT_BTN_1>;
+            bindings = <&kp LEFT>;
+        };
+        ip_behaviors2: ip_behaviors2 {
+            compatible = "zmk,input-processor-behaviors";
+            #input-processor-cells = <0>;
+            type = <INPUT_EV_KEY>;
+            codes = <INPUT_BTN_2>;
+            bindings = <&kp DOWN>;
+        };
+        ip_behaviors3: ip_behaviors3 {
+            compatible = "zmk,input-processor-behaviors";
+            #input-processor-cells = <0>;
+            type = <INPUT_EV_KEY>;
+            codes = <INPUT_BTN_3>;
+            bindings = <&kp UP>;
+        };
+    };
+
     behaviors {
         td0: tap_dance_0 {
             compatible = "zmk,behavior-tap-dance";
