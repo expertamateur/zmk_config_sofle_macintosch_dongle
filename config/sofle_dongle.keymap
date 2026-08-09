@@ -96,16 +96,19 @@
             tapping-term-ms = <220>;
         };
 
-        fn_tap: fn_tap {
-            compatible = "zmk,behavior-hold-tap";
-            label = "FN_TAP";
-            bindings = <&mo>, <&kp>;
+fn_tap: fn_tap {
+    compatible = "zmk,behavior-hold-tap";
+    label = "FN_TAP";
+    bindings = <&mo>, <&kp>;
 
-            #binding-cells = <2>;
-            quick-tap-ms = <220>;
-            tapping-term-ms = <150>;
-            flavor = "tap-preferred";
-        };
+    #binding-cells = <2>;
+    quick-tap-ms = <220>;
+    
+    // 【修改 1】缩小单击容差窗口（Tap Tolerance Window）
+    tapping-term-ms = <110>; 
+    
+    flavor = "hold-preferred"; 
+};
     };
 
     macros {
