@@ -102,10 +102,10 @@ fn_tap: fn_tap {
     bindings = <&mo>, <&kp>;
 
     #binding-cells = <2>;
-    quick-tap-ms = <220>;
+    quick-tap-ms = <160>;
     
     // 【修改 1】缩小单击容差窗口（Tap Tolerance Window）
-    tapping-term-ms = <110>; 
+    tapping-term-ms = <60>; 
     
     flavor = "hold-preferred"; 
 };
