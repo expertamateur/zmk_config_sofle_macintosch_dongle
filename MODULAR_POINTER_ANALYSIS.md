@@ -2,9 +2,25 @@
 
 > 生成时间：2026-09-19 · **仅调查记录，未改动仓库任何文件**
 >
-> 📌 **合并已完成（2026-09-20）。** 本文里的路径名是**分析当时的旧名**：实际落地时去掉了
-> 左右前缀和 `_dongle` 后缀 —— `config/boards/shields/{bbtrackball,bbtrackpad,trackpoint}/`，
-> 构建目标名见 `build.yaml`。§4 的引脚表仍是权威来源（驱动里的 `#error` 就指向它）。
+> 📌 **合并已完成（2026-09-20），板子也已按「半别 × 角色」改名（2026-09-20 稍后）。**
+> 本文第 1、2 节是**分析当时的原始记录**，里面的路径名、板名、shield 名、日志都是旧名，
+> 不做改写（改写等于伪造实验记录）。读它们时请按下表换算：
+>
+> | 本文里的旧名 | 现在的名字 |
+> |---|---|
+> | `sofle_dongle` | `dongle_master` |
+> | `sofle_dongle_left` | `lf_slaver`（当外设）/ `lf_master`（当主机） |
+> | `sofle_dongle_right` | `rt_slaver` / `rt_master` |
+> | `left_bbtrackball_dongle` / `left_bbtrackpad_dongle` / `right_trackpoint_dongle` | `bbtrackball` / `bbtrackpad` / `trackpoint` |
+> | `config/sofle_dongle_left.conf` | 引脚号 → 板目录 `Kconfig.defconfig` 的左半段 |
+> | `config/sofle_dongle_left.overlay` | pinctrl（psels）→ 板目录 `lf.dtsi`；右半对应 `rt.dtsi` |
+> | `config/sofle_dongle_right.conf` | 板目录 `Kconfig.defconfig` 的右半段 |
+>
+> **§3 已按现状重写**（它描述「落地成什么样」，不再是计划）；**§4 的引脚表仍是权威来源**
+> （驱动里的 `#error` 就指向它）；§5 的命令行已换成现在的板名/shield 名，可直接复制。
+> 看现在的全貌请直接读 `build.yaml`（12 个目标）与
+> `config/boards/arm/sofle_dongle/custom_driver/matrix_position0_assert.c`（0 号位不变式）。
+>
 > 所有结论来自**实测构建**：源码树副本放 `/tmp/probe_main`，构建产物放 `~/repositories/xa_m/zmk/app/build/<临时名>`（均已在调查结束后清理，未动 `build/` 下你自己的目录）
 >
 > ⚠️ **本文档已推翻初版结论。** 初版认为「shield 不能跨板复用」，那是**基于 HEAD 架构的误判**：HEAD 把 split 声明写死在 board dts 里，导致换 shield 就报断言。采用 main 的架构（声明下沉到 shield overlay）后，**同一个 shield 可以直接编到两侧**——已实测。
@@ -16,14 +32,14 @@
 | 问题 | 答案 |
 |---|---|
 | 左右能否**公用同一份外设固件源码**？ | **编译层面能。** 实测：左手轨迹球 shield 编到右手板 → 成功（FLASH 38.44%）；左手触摸板 shield 编到右手板 → 成功（FLASH 38.78%）。但**能编 ≠ 能用**：右手座上轨迹球/触摸板的引脚源码里没有（§4.4），所以现阶段不这么做 |
-| 会不会影响 ZMK 的自动链接？ | **不会。** shield 的 Kconfig 符号由**名字**决定，两侧取值相同；源文件挂载、shield 的 `.conf` 都两侧一致生效。区分左右用 **board 符号**（`CONFIG_BOARD_SOFLE_DONGLE_LEFT/RIGHT`，实测可用）或 per-side conf |
+| 会不会影响 ZMK 的自动链接？ | **不会。** shield 的 Kconfig 符号由**名字**决定，两侧取值相同；源文件挂载、shield 的 `.conf` 都两侧一致生效。区分左右用 **board 符号**（当时是 `CONFIG_BOARD_SOFLE_DONGLE_LEFT/RIGHT`，现在是 `CONFIG_BOARD_LF_SLAVER/LF_MASTER/RT_SLAVER/RT_MASTER` 四个，实测可用） |
 | 引脚能否用 conf 注入？ | **分两半**：**C 代码里的引脚可以**（Kconfig 值进 C 没问题）；**设备树里的引脚不行**（实测 `#if CONFIG_x` 在 overlay 里恒走 `#else`，DTS 预处理看不到 Kconfig） |
 | 设备树要怎么改？ | 把「座子→MCU 引脚」从 shield overlay **移到每侧一份的 `config/<board>.overlay`**（ZMK 原生支持，实测有效）；shield overlay 只留设备节点 + label 引用 |
 | 还有什么是必须按侧不同的？ | **matrix position 号**（驱动里的 `ev->position == 60/61`）。同一物理键在两侧的 position **不同，且差值逐行不一样**，必须按侧写死 |
 | 中枢能不能分辨指针输入来自哪一侧？ | **main 的配置下不能。** 中枢按 `reg` 分发（`input_split.c:29-39` 命中即 return），main 三个节点 `reg` 全是 0 → 永远只命中第一个。左右行为相同的场合无所谓；要不同就必须让两侧 `reg` 不同（见 1.7） |
 | 一份 dongle 够不够覆盖两侧三种设备？ | **够**（前提是左右行为一致）。main 的 dongle 三个 listener 全 `okay` 且 processor 相同，本身就是设备无关的 |
 | 左右两座是同一批 MCU 脚吗？ | **不是，已证实**（4.3）：左座那 4 根线在右板上是矩阵行列线。左右互换设备需要另一组引脚，源码里不存在 |
-| 那现在编几个固件？ | **4 个**：dongle + 左轨迹球 + 左触摸板 + 右小红点。即「每侧只编该侧已有定义」+ 厂商发布过的同一组合（§3、§4.4） |
+| 那现在编几个固件？ | 当时定 **4 个**：dongle + 左轨迹球 + 左触摸板 + 右小红点（「每侧只编该侧已有定义」+ 厂商发布过的同一组合，§3、§4.4）。**现在 7 个** —— 多出来的是「同一半当主机（没 dongle）」那一份：`dongle_master` / `lf_slaver_ball` / `lf_slaver_pad` / `lf_master_ball` / `lf_master_pad` / `rt_slaver_point` / `rt_master_point`，见 `build.yaml` |
 
 ---
 
@@ -209,44 +225,65 @@ return -ENODEV;
 
 ---
 
-## 3. 落地结构
+## 3. 落地结构（已按现状重写）
 
-**当前决策（先落地这一条）**：每侧只编该侧已有定义的设备，得到下面 `build.yaml` 的 **4 个目标**。源码按现状不动，引脚等硬件资料到位后再补（§4.4）。
+> 本节原先是「打算怎么落地」的计划。2026-09-20 已经落地并又改了一轮，这里换成**现状**。
 
-下面 `config/` 那段是**将来做「一份源码通吃两侧」重构时**的目标形态，不是现在要做的改动。
+**一条主线**：一套 keymap、五个板名，靠「板」把差异吃干净。
 
 ```
 config/
-  sofle_dongle.conf              # 两侧共用
-  sofle_dongle_left.conf         # 左侧：引脚号、position 常量（Kconfig 注入）
-  sofle_dongle_right.conf        # 右侧：同上
-  sofle_dongle_left.overlay      # 左侧：座子→MCU 引脚的 pinctrl（psels）
-  sofle_dongle_right.overlay     # 右侧：同上
-  boards/shields/
-    bbtrackball_dongle/          # 去掉 left_ 前缀；overlay 不含任何引脚号
-    bbtrackpad_dongle/           # 同上（从 main 来）
-    trackpoint_dongle/           # 同上
-build.yaml           # 当前决策：每侧只编「该侧已有定义」的设备 = 4 个目标
-  - board: sofle_dongle        shield: st7789_display                     # 中枢（设备无关，一份通吃）
-  - board: sofle_dongle_left   shield: lpm_view;left_bbtrackball_dongle   # 左：轨迹球
-  - board: sofle_dongle_left   shield: lpm_view;left_bbtrackpad_dongle    # 左：触摸板
-  - board: sofle_dongle_right  shield: lpm_view;right_trackpoint_dongle   # 右：小红点
+  sofle_dongle.conf              # 用户可调项（去抖、指针手感……），五块板共用
+  sofle_dongle.keymap            # 唯一一份 keymap（0 号位 = dongle 上那颗键，见下）
+  dts/bt_force_macros.dtsi       # keymap 的内部片段，收进内层目录
+  boards/
+    arm/sofle_dongle/            # 板目录（名字沿用 sofle_dongle）
+      Kconfig.board / Kconfig / Kconfig.defconfig   # 五个板符号 + 角色 + 按半的引脚号
+      CMakeLists.txt
+      sofle_dongle.dtsi          # 共用：67 格变换表、encoders、sensors、usbd、flash
+      lf.dtsi / rt.dtsi          # 左/右半硬件（kscan、EXT_POWER、屏幕 SPI、座子 pinctrl）
+      lf_{slaver,master}.dts     # = lf.dtsi（master 多一段「对侧模块入站」声明）
+      rt_{slaver,master}.dts     # 右半同理
+      dongle_master.dts          # 原 sofle_dongle.dts
+      <board>_defconfig × 5
+      custom_driver/             # 背光 + 0 号位不变式的编译期断言
+    shields/
+      lpm_view/                  # 半板的屏（按 split 角色自动切 status.c / art.c）
+      st7789_display/            # dongle 的屏
+      bbtrackball/ bbtrackpad/ trackpoint/   # 模块盾，overlay 里不含任何引脚号
+        boards/<board>.overlay   # 「这一半当主机时本半模块直连」的按板差异：shield 里
+                                 #   listener 改指板载设备 + 关掉同名 split 代理，
+                                 #   否则它用同一个 reg=0 抢走对侧上报的事件（§1.7）
 ```
 
-这 4 个目标恰好就是**厂商发布过的固件组合**（见 4.4）。左半用户刷「轨迹球」或「触摸板」二选一，右半刷「小红点」。dongle **一份通吃**（见 1.7），且用户刷错外设固件只是不工作，不会损坏设备，换一份重刷即可。
+`build.yaml`：**7 个功能目标 + 5 个 reset**，另有 6 个缺引脚组合以注释保留（不编译）。
 
-命名上建议把 `left_`/`right_` 前缀去掉（`bbtrackball_dongle` / `bbtrackpad_dongle` / `trackpoint_dongle`）——见 1.2：这个名字只是字符串，不影响功能，但会误导。
+| 目标 | board | shield |
+|---|---|---|
+| `dongle_master` | dongle_master | st7789_display |
+| `lf_slaver_ball` / `lf_slaver_pad` | lf_slaver | lpm_view;bbtrackball / lpm_view;bbtrackpad |
+| `lf_master_ball` / `lf_master_pad` | lf_master | 同上 |
+| `rt_slaver_point` / `rt_master_point` | rt_slaver / rt_master | lpm_view;trackpoint |
+
+**0 号位不变式**（「一套 keymap 通吃有/无 dongle」的前提，也是这次要证明的东西）：
+`map[0] = RC(0,0)` 就是 dongle 上那颗独立键；四块半板的 kscan 只有 8 根列线、`col-offset`
+为 1（左）/9（右），可达列区间是 1..8 / 9..16，**永远碰不到列 0**。实测（合并后的 `zephyr.dts`）：
+左右半 `map len = 67`、`map[0] = RC(0,0)`、落在列 0 的条目**只有 1 个**（就是 map[0] 自己）。
+这条从注释升级成了**编译期断言**：`custom_driver/matrix_position0_assert.c`（只编进半板），
+改坏 `col-offset` 或把 `map[0]` 挪走都会直接编译失败。
 
 **实测成本**（容器内 west build，冷配置）：
 
-| 目标 | 时间 | FLASH | RAM |
-|---|---|---|---|
-| dongle（main，3 listener） | 22.2s | 49.29% | **86.12%** ← 最紧 |
-| 单侧外设 | 30–40s | 33–39% | 29–30% |
+| 目标 | FLASH | RAM |
+|---|---|---|
+| dongle_master | 49.31% | **86.23%** ← 最紧 |
+| 半板（外设） | 33–39% | 29–30% |
+| 半板（主机，多一层 split 中央 + 中央版屏幕） | 44.9–53.8% | 42.5–43.4% |
+| reset | 7.8–17.8% | 7.6–16.6% |
 
-4 个目标 ≈ **2–3 分钟**一次全量；若再加 reset 固件（HEAD 有 3 个，main 全删了）≈ 4–5 分钟。编译时间完全不是瓶颈。
-
-**要扩到「6 个外设固件」时，卡点是硬件引脚数据**（§4.4），不是编译：右座 / 左座互换设备的引脚源码里根本没有。当前决策先按 4 目标落地，引脚以后再补。
+**要扩到「两侧 6 种模块组合都能用」时，卡点是硬件引脚数据**（§4.4），不是编译：
+右座 / 左座互换设备的引脚源码里根本没有。资料到了只要往 `Kconfig.defconfig` 填引脚、
+把 `build.yaml` 的注释转正，板名与 shield 名都不用动。
 
 ---
 
@@ -255,7 +292,7 @@ build.yaml           # 当前决策：每侧只编「该侧已有定义」的设
 > 原则：**只记录源码里确实写了的**。没有写的一律留空待补，不做猜测。
 > 目前每侧只支持「该侧已经定义过」的设备：**左 = 轨迹球 / 触摸板，右 = 小红点**。
 
-### 4.1 左座 `sofle_dongle_left`
+### 4.1 左座（`lf_slaver` / `lf_master`，原 `sofle_dongle_left`）
 
 **4 根数据线**（`left_bbtrackball_dongle/custom_driver_left/bbtrackball_input_handler.c:31-37` 定义、`:75-78` 绑定到具体 gpio 控制器——注意 **DOWN 在 `gpio1`，其余三根在 `gpio0`**）：
 
@@ -275,7 +312,7 @@ build.yaml           # 当前决策：每侧只编「该侧已有定义」的设
 
 → **轨迹球与触摸板复用同一批导线**：P0.05 / P0.12 / P1.09 三根被两个设备各自赋予不同用途。这就是「换模块不用换排线」在源码上的证据。
 
-### 4.2 右座 `sofle_dongle_right`（当前只定义了小红点）
+### 4.2 右座（`rt_slaver` / `rt_master`，原 `sofle_dongle_right`；当前只定义了小红点）
 
 | 功能 | 引脚 | 出处 |
 |---|---|---|
@@ -288,7 +325,7 @@ build.yaml           # 当前决策：每侧只编「该侧已有定义」的设
 
 ### 4.3 已证实：左右两座不是同一批 MCU 脚
 
-左座用的 P0.05 / P0.12 / P1.09 / P0.27，在**右板上是矩阵的行列线**（`sofle_dongle_right.dts:21-39`：row-gpios 含 `P0.12`、`P1.9`；col-gpios 含 `P0.5`、`P0.27`）。
+左座用的 P0.05 / P0.12 / P1.09 / P0.27，在**右板上是矩阵的行列线**（现 `rt.dtsi` 的 kscan 段：row-gpios 含 `P0.12`、`P1.9`；col-gpios 含 `P0.5`、`P0.27`）。
 
 → 同一个 MCU 脚不可能既是矩阵线又是模块信号线，所以**两侧模块座分别接到了不同的 MCU 脚**。右座要用轨迹球/触摸板，必须另有一组引脚，这组引脚**源码里目前不存在**（见 4.4）。
 
@@ -309,9 +346,16 @@ Left_sofle_trackball · Left_sofle_trackpad · Right_sofle_trackpoint · Macinto
 
 即：**左座支持轨迹球+触摸板，右座只支持小红点**，与源码一致，也没有第四种组合的痕迹（`git log --all` 里从未出现过 `right_bbtrackpad` / `right_bbtrackball` / `left_trackpoint` 这类 shield）。
 
+**资料到位后怎么补**（现在的做法）：
+1. 引脚号写进 `config/boards/arm/sofle_dongle/Kconfig.defconfig` 对应那一半的段里
+   （左半在 `if BOARD_LF_SLAVER || BOARD_LF_MASTER`，右半在 `if BOARD_RT_SLAVER || BOARD_RT_MASTER`）；
+2. I2C / PWM 的 pinctrl（psels）写进 `lf.dtsi` / `rt.dtsi`；
+3. 把 `build.yaml` 里那 6 行注释转正（`lf_*_point`、`rt_*_ball`、`rt_*_pad`）；
+4. 驱动顶部的 `#error` 会自动消失（它判的是「引脚号还是 -1」），不用改代码。
+
 ### 4.5 右板引脚占用清点（供将来补引脚时用）
 
-统计口径：构建 `-b sofle_dongle_right -- -DSHIELD="lpm_view;right_trackpoint_dongle"` 后，取**合并设备树**里的 `<&gpioN M>` 与所有 `psels`，**再加上驱动里硬编码的 C 宏**（插座引脚不在设备树里，只看 DT 会漏）。
+统计口径：构建 `-b rt_slaver -- -DSHIELD="lpm_view;trackpoint"` 后，取**合并设备树**里的 `<&gpioN M>` 与所有 `psels`，**再加上驱动里硬编码的 C 宏**（插座引脚不在设备树里，只看 DT 会漏）。
 
 已占用 **P0（21 个）**：
 `03 04 05 06 07 08 09 10 12 13 14 15 17 19 24 26 27 28 29 30 31`
@@ -344,12 +388,14 @@ sed -n '49,57p' ~/repositories/xa_m/zmk/app/src/pointing/input_split.c
 sed -n '70,82p' ~/repositories/xa_m/zmk/app/src/matrix_transform.c
 
 # 5) 算某物理键的 position：数 map 里的条目序号
-git show HEAD:config/boards/arm/sofle_dongle/sofle_dongle.dtsi \
-  | sed -n '/map = </,/>/p' | grep -oE "RC\([0-9]+, *[0-9]+\)" | nl -v0 -ba
+#    （位置 0 = RC(0,0) = dongle 上那颗键；半板靠 col-offset 够不着，见 §3）
+sed -n '/map = </,/>/p' config/boards/arm/sofle_dongle/sofle_dongle.dtsi \
+  | grep -oE "RC\([0-9]+, *[0-9]+\)" | nl -v0 -ba
 
-# 6) 跨板构建（示例）
-west build -p -d build/x -b sofle_dongle_right -- \
-  -DSHIELD="lpm_view bbtrackball_dongle" -DZMK_CONFIG=/workspaces/zmk-config/config
+# 6) 跨板构建（示例：右半的盾编到左半的板上）
+#    现在的板名/shield 名见 build.yaml；仓库根也可以直接 ./zmk_build <目标名>
+west build -p -d build/x -b lf_slaver -- \
+  -DSHIELD="lpm_view bbtrackball" -DZMK_CONFIG=/workspaces/zmk-config/config
 
 # 7) 查 zmk,input-split 的实例顺序（注意 token 是【小写】，大写只有 compatible 字符串宏）
 grep -nE 'DT_N_INST_[0-9]+_zmk_input_split' \
@@ -357,8 +403,8 @@ grep -nE 'DT_N_INST_[0-9]+_zmk_input_split' \
 
 # 8) 重算某侧引脚占用 + 空位（§4.5 的方法）
 #    先构建，再从合并设备树取 <&gpioN M> 与【全部】psels，最后并上驱动里的硬编码宏
-west build -p -d build/PINFREE -b sofle_dongle_right -- \
-  -DSHIELD="lpm_view;right_trackpoint_dongle" -DZMK_CONFIG=/workspaces/zmk-config/config
+west build -p -d build/PINFREE -b rt_slaver -- \
+  -DSHIELD="lpm_view;trackpoint" -DZMK_CONFIG=/workspaces/zmk-config/config
 python3 - <<'PY'
 import re, os
 s = open(os.path.expanduser("~/repositories/xa_m/zmk/app/build/PINFREE/zephyr/zephyr.dts")).read()

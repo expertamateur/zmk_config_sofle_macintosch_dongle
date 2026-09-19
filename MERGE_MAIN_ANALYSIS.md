@@ -5,6 +5,11 @@
 > 📌 **合并已完成（2026-09-20）。** 本文描述的是**合并前**两边的状态，里面的
 > `left_*` / `right_*_dongle` 等路径名是当时的旧名，落地时已改为
 > `config/boards/shields/{bbtrackball,bbtrackpad,trackpoint}/`。保留本文只为记录当时的取舍依据。
+>
+> 板名后来也换过一轮：`sofle_dongle` → `dongle_master`，`sofle_dongle_left` → `lf_slaver` / `lf_master`，
+> `sofle_dongle_right` → `rt_slaver` / `rt_master`；引脚从 `config/<board>.conf` 移进了板目录
+> `config/boards/arm/sofle_dongle/{Kconfig.defconfig,lf.dtsi,rt.dtsi}`。本文的旧名同样不改写
+> （那是当时的记录）。**看现状读 `build.yaml` 与 `MODULAR_POINTER_ANALYSIS.md`。**
 > 生成方式：`git diff`（两点 / 三点）+ `git merge-tree --write-tree`（无副作用试合并）
 
 ---

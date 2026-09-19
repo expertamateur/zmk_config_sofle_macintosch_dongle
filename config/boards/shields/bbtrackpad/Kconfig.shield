@@ -105,7 +105,8 @@ endmenu
 menu "A320 Socket Pins"
 
 # 模块插座上的 MOTION 中断线接到哪只脚。I2C 那两根是设备树的事
-# （config/sofle_dongle_left.overlay），这里只管驱动自己配的 GPIO。
+# （config/boards/arm/sofle_dongle/lf.dtsi），这里只管驱动自己配的 GPIO。
+# 按「板」给值：左半在 Kconfig.defconfig 的 `if BOARD_LF_*` 段。
 # 目前只有左座数据（MODULAR_POINTER_ANALYSIS.md §4.1）：MOTION P0.05。
 
 config A320_MOTION_GPIO_PORT

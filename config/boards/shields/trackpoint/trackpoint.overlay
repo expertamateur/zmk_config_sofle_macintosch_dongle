@@ -67,5 +67,6 @@
     device = <&trackpoint>;
 };
 
-/* 引脚定义在 config/sofle_dongle_right.overlay（属于板子，不属于模块） */
+/* 引脚定义在板目录 config/boards/arm/sofle_dongle/（属于板子，不属于模块）：
+ * 引脚号在 Kconfig.defconfig 的按半段里，pinctrl 的 psels 在 rt.dtsi */
 

@@ -35,15 +35,17 @@ endmenu
 
 menu "BBtrackball Socket Pins"
 
-# 模块插座上那四根方向线接到哪只脚。引脚不再写死在驱动源码里，值放在
-# config/sofle_dongle_left.conf / config/sofle_dongle_right.conf。
+# 模块插座上那四根方向线接到哪只脚。引脚不再写死在驱动源码里，按「板」给值：
+# 左半（lf_*）在 config/boards/arm/sofle_dongle/Kconfig.defconfig 的
+# `if BOARD_LF_SLAVER || BOARD_LF_MASTER` 段里，右半同理（rt_*）。
 #
 # default -1 = 「这一侧的引脚还没有定义」。驱动里 #if 判到 -1 会直接
 # #error，而不是默默用 0 号脚编出一份接不上的固件。
 #
 # 目前只有左座数据（MODULAR_POINTER_ANALYSIS.md §4.1）：
 #   UP P0.05 · LEFT P0.12 · DOWN P1.09 · RIGHT P0.27
-# 右座资料到位后，在 config/sofle_dongle_right.conf 里补上这里八项的值。
+# 右座资料到位后，往 Kconfig.defconfig 的右半段补上这里八项的值，
+# 并把 build.yaml 里 rt_*_ball 那两行注释转正。
 
 config BBTRACKBALL_UP_GPIO_PORT
     int "GPIO port number (0 or 1) of the trackball UP line"

@@ -75,7 +75,8 @@
 };
 
 /*
- * 引脚定义在 config/sofle_dongle_left.overlay（属于板子，不属于模块）。
+ * 引脚定义在板目录 config/boards/arm/sofle_dongle/（属于板子，不属于模块）：
+ * 引脚号在 Kconfig.defconfig 的按半段里，pinctrl 的 psels 在 lf.dtsi。
  *
  * 注意 pwm3 的 enable 也在那个文件里，不在这里：pwm3 是插座上那颗副 LED，
  * 只有左板把它接出来了。enable 里引用 pwm3_default，而 pwm3_default 是板级
