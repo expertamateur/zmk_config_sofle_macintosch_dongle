@@ -1,16 +1,35 @@
 ---
+# artifact-name 是 zmk_build 的目标名，也是 GitHub Actions 的产物名。
+# 同一个 board 上挂多个 shield 时必须显式写，否则目标名会撞车。
 include:
+  # 中枢：设备无关，一份通吃（见 MODULAR_POINTER_ANALYSIS.md §1.7）
   - board: sofle_dongle
     shield: st7789_display
+    artifact-name: dongle
+
+  # 左半：轨迹球 / 触摸板
   - board: sofle_dongle_left
     shield: lpm_view;left_bbtrackball_dongle
+    artifact-name: left_ball
+  - board: sofle_dongle_left
+    shield: lpm_view;left_bbtrackpad_dongle
+    artifact-name: left_pad
+
+  # 右半：小红点
   - board: sofle_dongle_right
     shield: lpm_view;right_trackpoint_dongle
+    artifact-name: right_point
 
-
+  # settings_reset 恢复固件，与上面一一对应
   - board: sofle_dongle
     shield: st7789_display;settings_reset
+    artifact-name: dongle_reset
   - board: sofle_dongle_left
     shield: lpm_view;left_bbtrackball_dongle;settings_reset
+    artifact-name: left_ball_reset
+  - board: sofle_dongle_left
+    shield: lpm_view;left_bbtrackpad_dongle;settings_reset
+    artifact-name: left_pad_reset
   - board: sofle_dongle_right
     shield: lpm_view;right_trackpoint_dongle;settings_reset
+    artifact-name: right_point_reset

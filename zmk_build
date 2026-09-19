@@ -44,17 +44,23 @@ def gen_targets(data: dict) -> list[dict]:
         board = t.get("board", "unknown")
         shield = t.get("shield", "")
 
-        if board == "sofle_dongle":
-            name = "dongle"
-        elif board == "sofle_dongle_left":
-            name = "left"
-        elif board == "sofle_dongle_right":
-            name = "right"
-        else:
-            name = board
+        # 优先用 build.yaml 里显式写的 artifact-name。同一个 board 上可以挂多个
+        # shield（左手既能装轨迹球也能装触摸板），只按 board 推名字会撞车，
+        # 而重名会让 build/<name>/ 目录互相清空。
+        name = t.get("artifact-name")
+        if not name:
+            # 退回：按 board 推（老规则，没写 artifact-name 时保持旧行为）
+            if board == "sofle_dongle":
+                name = "dongle"
+            elif board == "sofle_dongle_left":
+                name = "left"
+            elif board == "sofle_dongle_right":
+                name = "right"
+            else:
+                name = board
 
-        if "settings_reset" in shield:
-            name = f"{name}_reset"
+            if "settings_reset" in shield:
+                name = f"{name}_reset"
 
         rows.append({
             "index": i + 1,
@@ -62,6 +68,19 @@ def gen_targets(data: dict) -> list[dict]:
             "board": board,
             "shield": shield,
         })
+
+    # 目标名必须唯一：resolve_targets() 命中第一个就 break，重名会让后面的
+    # 目标永远编不到，而且两者共用同一个 build/<name>/ 目录。
+    seen_names: dict[str, int] = {}
+    for r in rows:
+        if r["name"] in seen_names:
+            print(f"Error: build.yaml 里目标名 '{r['name']}' 重复"
+                  f"（第 {seen_names[r['name']]} 项与第 {r['index']} 项）",
+                  file=sys.stderr)
+            print("请给每个目标加 artifact-name 区分", file=sys.stderr)
+            sys.exit(1)
+        seen_names[r["name"]] = r["index"]
+
     return rows
 
 

@@ -14,43 +14,13 @@
 #include <dt-bindings/zmk/rgb.h>
 #include <dt-bindings/input/input-event-codes.h>
 
+/*
+ * 这里原本有 zip_temp_layer + ip_behaviors0~3 四个 input-processor。
+ * 本分支的指针语义是「指针设备跟随层」，模式判断在驱动里做（见各 shield 的
+ * Kconfig），不靠 zip_temp_layer 反向顶键盘的层；方向键功能已全删，
+ * ip_behaviors 没有存在意义。故整块移除。
+ */
 / {
-    input_processors {
-        zip_temp_layer: zip_temp_layer {
-            compatible = "zmk,input-processor-temp-layer";
-            #input-processor-cells = <2>;
-        };
-
-        ip_behaviors0: ip_behaviors0 {
-            compatible = "zmk,input-processor-behaviors";
-            #input-processor-cells = <0>;
-            type = <INPUT_EV_KEY>;
-            codes = <INPUT_BTN_0>;
-            bindings = <&kp RIGHT>;
-        };
-        ip_behaviors1: ip_behaviors1 {
-            compatible = "zmk,input-processor-behaviors";
-            #input-processor-cells = <0>;
-            type = <INPUT_EV_KEY>;
-            codes = <INPUT_BTN_1>;
-            bindings = <&kp LEFT>;
-        };
-        ip_behaviors2: ip_behaviors2 {
-            compatible = "zmk,input-processor-behaviors";
-            #input-processor-cells = <0>;
-            type = <INPUT_EV_KEY>;
-            codes = <INPUT_BTN_2>;
-            bindings = <&kp DOWN>;
-        };
-        ip_behaviors3: ip_behaviors3 {
-            compatible = "zmk,input-processor-behaviors";
-            #input-processor-cells = <0>;
-            type = <INPUT_EV_KEY>;
-            codes = <INPUT_BTN_3>;
-            bindings = <&kp UP>;
-        };
-    };
-
     behaviors {
 
         td_lf_win_ctrl: tap_dance_lf_win_ctrl {

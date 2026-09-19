@@ -18,43 +18,9 @@
 #define RES 2
 #define BOT bootloader
 
+/* 同 config/sofle_dongle.keymap：zip_temp_layer + ip_behaviors0~3 整块移除
+ * （本分支的指针语义是「指针设备跟随层」，且方向键功能已全删）。 */
 / {
-    input_processors {
-        zip_temp_layer: zip_temp_layer {
-            compatible = "zmk,input-processor-temp-layer";
-            #input-processor-cells = <2>;
-        };
-
-        ip_behaviors0: ip_behaviors0 {
-            compatible = "zmk,input-processor-behaviors";
-            #input-processor-cells = <0>;
-            type = <INPUT_EV_KEY>;
-            codes = <INPUT_BTN_0>;
-            bindings = <&kp RIGHT>;
-        };
-        ip_behaviors1: ip_behaviors1 {
-            compatible = "zmk,input-processor-behaviors";
-            #input-processor-cells = <0>;
-            type = <INPUT_EV_KEY>;
-            codes = <INPUT_BTN_1>;
-            bindings = <&kp LEFT>;
-        };
-        ip_behaviors2: ip_behaviors2 {
-            compatible = "zmk,input-processor-behaviors";
-            #input-processor-cells = <0>;
-            type = <INPUT_EV_KEY>;
-            codes = <INPUT_BTN_2>;
-            bindings = <&kp DOWN>;
-        };
-        ip_behaviors3: ip_behaviors3 {
-            compatible = "zmk,input-processor-behaviors";
-            #input-processor-cells = <0>;
-            type = <INPUT_EV_KEY>;
-            codes = <INPUT_BTN_3>;
-            bindings = <&kp UP>;
-        };
-    };
-
     behaviors {
         td0: tap_dance_0 {
             compatible = "zmk,behavior-tap-dance";
