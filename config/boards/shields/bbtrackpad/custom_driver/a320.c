@@ -141,7 +141,6 @@ struct a320_data {
     struct k_work_delayable enable_irq_work; // ⭐ 新增
     uint32_t last_packet_time;
     uint32_t last_scroll_time;
-    bool last_scroll_mode;
     float scroll_residue_x;
     float scroll_residue_y;
 };
@@ -209,6 +208,22 @@ static void a320_detect_variant(const struct device *dev) {
 }
 
 /* Same speed scaling and fractional accumulation as the Q20 CM5 driver. */
+/* 速度→缩放系数：划得越快，每格轮齿吃掉的位移越少（加速更灵敏）。
+ * 抽成函数是因为进入滚轮模式时初始化残留值也要用同一个系数，
+ * 两处各写一份迟早会改歪。 */
+static inline float cm5_scale_for(int16_t dx, int16_t dy) {
+    float speed = sqrtf((float)dx * dx + (float)dy * dy);
+    if (speed > 80.0f)
+        return 0.05f;
+    if (speed > 40.0f)
+        return 0.04f;
+    if (speed > 20.0f)
+        return 0.03f;
+    if (speed > 5.0f)
+        return 0.02f;
+    return 0.015f;
+}
+
 static inline void process_cm5_scroll(const struct device *dev, struct a320_data *data,
                                       int16_t dx, int16_t dy, uint32_t now) {
     if (now - data->last_scroll_time > 60) {
@@ -217,18 +232,7 @@ static inline void process_cm5_scroll(const struct device *dev, struct a320_data
     }
     data->last_scroll_time = now;
 
-    float speed = sqrtf((float)dx * dx + (float)dy * dy);
-    float scale;
-    if (speed > 80.0f)
-        scale = 0.05f;
-    else if (speed > 40.0f)
-        scale = 0.04f;
-    else if (speed > 20.0f)
-        scale = 0.03f;
-    else if (speed > 5.0f)
-        scale = 0.02f;
-    else
-        scale = 0.015f;
+    float scale = cm5_scale_for(dx, dy);
 
     data->scroll_residue_x += dx * scale;
     data->scroll_residue_y += dy * scale;
@@ -255,7 +259,8 @@ static void a320_work_cb(struct k_work *work) {
         data->scroll_residue_x = 0.0f;
         data->scroll_residue_y = 0.0f;
         data->last_scroll_time = 0;
-        data->last_scroll_mode = false;
+        /* 看门狗之后的下一拍要重新垫残留值 */
+        data->last_packet_time = 0;
 
         touched = false;
         return;
@@ -305,16 +310,7 @@ static void a320_work_cb(struct k_work *work) {
     int16_t dy = total_dy;
 
     /* ========= 模式判定：默认滚轮，按住模式键才走鼠标 ========= */
-    bool mouse_mode = mouse_key_1_pressed || mouse_key_2_pressed;
-    bool scroll_mode = !mouse_mode;
-
-    if (scroll_mode && !data->last_scroll_mode) {
-        data->scroll_residue_x = 0.0f;
-        data->scroll_residue_y = 0.0f;
-        data->last_scroll_time = 0;
-    }
-
-    if (mouse_mode) {
+    if (mouse_key_1_pressed || mouse_key_2_pressed) {
         uint8_t a320_led_brt = indicator_tp_get_last_valid_brightness();
         float a320_factor = 0.4f + 0.01f * a320_led_brt;
 
@@ -324,11 +320,24 @@ static void a320_work_cb(struct k_work *work) {
         input_report_rel(dev, INPUT_REL_X, (int)fx, false, K_NO_WAIT);
         input_report_rel(dev, INPUT_REL_Y, (int)fy, true, K_NO_WAIT);
     } else {
+        /* 隔久了回到滚轮模式时，用当前位移把残留值垫起来 ——
+         * 和小红点驱动（trackpoint_0x15.c report_work_cb）同一套做法：
+         * 不垫的话第一下要先填满 residue 才出轮齿，手感是「推了没反应」。
+         * last_scroll_time 一并推平，否则下面的 60ms 规则会立刻把它清掉。 */
+        if (data->last_packet_time == 0 || now - data->last_packet_time > 500) {
+            float seed = cm5_scale_for(dx, dy);
+            data->scroll_residue_x = dx * seed;
+            data->scroll_residue_y = dy * seed;
+            data->last_scroll_time = now;
+        }
+
         /* Keep this board's original X/Y axes and scroll directions. */
         int16_t scroll_x = dx * SCROLL_X_DIR;
         int16_t scroll_y = dy * SCROLL_Y_DIR;
 
-        /* 主导轴锁定：斜着划的时候只认更强势的那一轴，避免页面被横拖 */
+        /* 主导轴锁定：斜着划的时候只认更强势的那一轴，避免页面被横拖。
+         * 规则与阈值同小红点驱动（trackpoint_0x15.c report_work_cb）：
+         * 两轴差距不到 NUMERATOR/DENOMINATOR 倍就两轴都归零。 */
         int abs_x = abs(scroll_x);
         int abs_y = abs(scroll_y);
 
@@ -344,7 +353,6 @@ static void a320_work_cb(struct k_work *work) {
         process_cm5_scroll(dev, data, scroll_x, scroll_y, now);
     }
 
-    data->last_scroll_mode = scroll_mode;
     touched = false;
     data->last_packet_time = now;
 }
