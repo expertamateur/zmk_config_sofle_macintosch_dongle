@@ -1,0 +1,263 @@
+#!/usr/bin/env python3
+"""zmk_build - ZMK 固件编译工具.
+
+扫描 build.yaml 中的编译目标，并一次编译多个固件.
+默认挂载当前目录为 ZMK_HOST_CONFIG_DIR.
+"""
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import yaml
+
+
+# --- 默认配置（可通过环境变量覆盖） ---
+ZMK_CONTAINER_NAME = os.environ.get("ZMK_CONTAINER_NAME", "zmk-dev")
+ZMK_PROJECT_ROOT = os.environ.get(
+    "ZMK_PROJECT_ROOT",
+    os.path.expanduser("~/repositories/xa_m/zmk"),
+)
+ZMK_APP_DIR = os.environ.get("ZMK_APP_DIR", "/workspaces/zmk/app")
+ZMK_CONFIG_DIR = os.environ.get("ZMK_CONFIG_DIR", "/workspaces/zmk-config/config")
+ZMK_IMAGE = os.environ.get("ZMK_IMAGE", "zmkfirmware/zmk-dev-arm:4.1-branch")
+
+
+# --- 辅助函数 ---
+
+def find_build_yaml(start_dir: Path) -> Path | None:
+    for parent in [start_dir, *start_dir.parents]:
+        candidate = parent / "build.yaml"
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def gen_targets(data: dict) -> list[dict]:
+    targets = data.get("include", [])
+    rows = []
+    for i, t in enumerate(targets):
+        board = t.get("board", "unknown")
+        shield = t.get("shield", "")
+
+        if board == "sofle_dongle":
+            name = "dongle"
+        elif board == "sofle_dongle_left":
+            name = "left"
+        elif board == "sofle_dongle_right":
+            name = "right"
+        else:
+            name = board
+
+        if "settings_reset" in shield:
+            name = f"{name}_reset"
+
+        rows.append({
+            "index": i + 1,
+            "name": name,
+            "board": board,
+            "shield": shield,
+        })
+    return rows
+
+
+def print_targets_table(targets: list[dict], project_root: str) -> None:
+    print(f"Project root: {project_root}")
+    print("Build targets from build.yaml:")
+    print()
+    for r in targets:
+        print(f"  [{r['index']}] {r['name']:<20s} board: {r['board']:<25s} shield: {r['shield']}")
+    print()
+    print("Usage: zmk_build [name|number|all] ...")
+    print("       zmk_build --scan         (show this list)")
+
+
+def resolve_targets(targets: list[dict], args: list[str]) -> list[dict]:
+    selected = []
+    seen: set[str] = set()
+    for arg in args:
+        found = False
+        for t in targets:
+            if t["name"] == arg or str(t["index"]) == arg:
+                key = str(t["index"])
+                if key not in seen:
+                    selected.append(t)
+                    seen.add(key)
+                    found = True
+                break
+        if not found:
+            print(f"Error: 未知目标 '{arg}'", file=sys.stderr)
+            print("运行 zmk_build --scan 查看可用目标", file=sys.stderr)
+            sys.exit(1)
+    return selected
+
+
+def ensure_container(host_config_dir: str) -> None:
+    result = subprocess.run(
+        ["docker", "ps", "-a", "--format", "{{.Names}}"],
+        capture_output=True, text=True,
+    )
+    if ZMK_CONTAINER_NAME not in result.stdout.splitlines():
+        print(f"==> 创建容器 {ZMK_CONTAINER_NAME} ...")
+        subprocess.run([
+            "docker", "run", "-d", "-it",
+            "--name", ZMK_CONTAINER_NAME,
+            "-v", f"{ZMK_PROJECT_ROOT}:/workspaces/zmk",
+            "-v", f"{host_config_dir}:/workspaces/zmk-config",
+            "-v", "zmk-zephyr:/workspaces/zmk/zephyr",
+            "-v", "zmk-zephyr-modules:/workspaces/zmk/modules",
+            "-v", "zmk-zephyr-tools:/workspaces/zmk/tools",
+            ZMK_IMAGE,
+        ], check=True)
+        time.sleep(2)
+        return
+
+    result = subprocess.run(
+        ["docker", "inspect", "-f", "{{.State.Running}}", ZMK_CONTAINER_NAME],
+        capture_output=True, text=True,
+    )
+    if result.stdout.strip() != "true":
+        print(f"==> 启动已存在的容器 {ZMK_CONTAINER_NAME} ...")
+        subprocess.run(["docker", "start", ZMK_CONTAINER_NAME], check=True)
+        time.sleep(1)
+
+
+def build_target(name: str, board: str, shield: str, project_root: str) -> bool:
+    build_dir = f"build/{name}"
+    shield_args = shield.replace("; ", " ").replace(";", " ")
+
+    print()
+    print("=" * 60)
+    print(f"  编译: {name}  (board: {board}, shield: {shield})")
+    print("=" * 60)
+
+    cmd = (
+        f'west build -p -d {build_dir} -b {board} -- '
+        f'-DSHIELD="{shield_args}" -DZMK_CONFIG="{ZMK_CONFIG_DIR}"'
+    )
+    result = subprocess.run(
+        ["docker", "exec", "-w", ZMK_APP_DIR, ZMK_CONTAINER_NAME,
+         "bash", "-l", "-c", cmd],
+    )
+    if result.returncode != 0:
+        return False
+
+    # 用 docker cp 将固件从容器提取到宿主机 ./build/{name}/
+    host_out = os.path.join(project_root, build_dir)
+    os.makedirs(host_out, exist_ok=True)
+    container_dir = f"{ZMK_APP_DIR}/{build_dir}/zephyr"
+    # 在线编译命名格式: {shield}-{board}-zmk.{ext}
+    base_name = shield + "-" + board
+    for ext in ("uf2", "hex"):
+        src = f"zmk.{ext}"
+        dst = f"{base_name}-zmk.{ext}"
+        subprocess.run(
+            ["docker", "cp", f"{ZMK_CONTAINER_NAME}:{container_dir}/{src}",
+             os.path.join(host_out, dst)],
+            capture_output=True,
+        )
+    return True
+
+
+# --- 主逻辑 ---
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="ZMK 固件编译工具 - 扫描并编译 build.yaml 中的固件目标",
+    )
+    parser.add_argument(
+        "targets", nargs="*",
+        help="编译目标 (名称/序号/all)，不指定则显示目标列表"
+    )
+    parser.add_argument(
+        "-s", "--scan", action="store_true",
+        help="扫描并显示编译目标列表"
+    )
+    parser.add_argument(
+        "-j", "--json", action="store_true",
+        help="配合 --scan 以 JSON 格式输出"
+    )
+    parser.add_argument(
+        "-n", "--dry-run", action="store_true",
+        help="只显示将编译的目标，不实际编译"
+    )
+    args = parser.parse_args()
+
+    # 查找 build.yaml
+    build_yaml = find_build_yaml(Path.cwd())
+    if build_yaml is None:
+        print("Error: build.yaml not found in current directory or any parent",
+              file=sys.stderr)
+        sys.exit(1)
+
+    project_root = str(build_yaml.parent)
+    host_config_dir = os.environ.get("ZMK_HOST_CONFIG_DIR", project_root)
+
+    if not os.path.isdir(ZMK_PROJECT_ROOT):
+        print(f"Error: ZMK_PROJECT_ROOT='{ZMK_PROJECT_ROOT}' 不存在",
+              file=sys.stderr)
+        print("请设置: export ZMK_PROJECT_ROOT=/path/to/zmk", file=sys.stderr)
+        sys.exit(1)
+
+    # 解析 build.yaml
+    with open(build_yaml) as f:
+        data = yaml.safe_load(f)
+    all_targets = gen_targets(data)
+
+    # --scan 或无参数: 显示目标列表
+    if args.scan or not args.targets:
+        if args.json:
+            json.dump(all_targets, sys.stdout, indent=2, ensure_ascii=False)
+            sys.stdout.write("\n")
+        else:
+            print_targets_table(all_targets, project_root)
+        sys.exit(0)
+
+    # 匹配目标
+    if args.targets == ["all"]:
+        selected = all_targets
+    else:
+        selected = resolve_targets(all_targets, args.targets)
+
+    if not selected:
+        print("Error: 没有匹配的编译目标", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"ZMK_PROJECT_ROOT    = {ZMK_PROJECT_ROOT}")
+    print(f"ZMK_HOST_CONFIG_DIR = {host_config_dir}")
+    print(f"Container           = {ZMK_CONTAINER_NAME}")
+    print("Targets to build:")
+    print()
+    for t in selected:
+        print(f"  [{t['index']}] {t['name']}  ({t['board']} + {t['shield']})")
+    print()
+
+    if args.dry_run:
+        print("(dry-run: 跳过实际编译)")
+        sys.exit(0)
+
+    ensure_container(host_config_dir)
+
+    failed = []
+    for t in selected:
+        if build_target(t["name"], t["board"], t["shield"], project_root):
+            print(f"[OK] {t['name']} 编译成功 -> build/{t['name']}/{t['shield']}-{t['board']}-zmk.uf2")
+        else:
+            print(f"[FAIL] {t['name']} 编译失败")
+            failed.append(t["name"])
+
+    print()
+    print("=" * 60)
+    if not failed:
+        print("  全部编译成功!")
+    else:
+        print(f"  以下目标编译失败: {failed}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
