@@ -86,7 +86,7 @@ static uint32_t last_activity_time;
  * I2C 那两根在 config/sofle_dongle_right.overlay 里。
  */
 #if !defined(CONFIG_BOARD_SOFLE_DONGLE_RIGHT)
-#error "trackpoint_dongle 目前只有右座引脚定义（见 MODULAR_POINTER_ANALYSIS.md §4.2）；左座引脚源码里不存在，拒绝编出一份接不上的固件。"
+#error "trackpoint 目前只有右座引脚定义（见 MODULAR_POINTER_ANALYSIS.md §4.2）；左座引脚源码里不存在，拒绝编出一份接不上的固件。"
 #endif
 
 #if CONFIG_TRACKPOINT_MOTION_GPIO_PORT == 0

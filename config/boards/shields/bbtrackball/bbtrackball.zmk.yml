@@ -1,6 +1,6 @@
 file_format: "1"
-id: left_bbtrackpad_dongle
-name: left_bbtrackpad_dongle
+id: bbtrackball
+name: bbtrackball
 type: shield
 url:
 requires:

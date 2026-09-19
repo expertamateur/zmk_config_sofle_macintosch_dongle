@@ -9,15 +9,15 @@ include:
 
   # 左半：轨迹球 / 触摸板
   - board: sofle_dongle_left
-    shield: lpm_view;left_bbtrackball_dongle
+    shield: lpm_view;bbtrackball
     artifact-name: left_ball
   - board: sofle_dongle_left
-    shield: lpm_view;left_bbtrackpad_dongle
+    shield: lpm_view;bbtrackpad
     artifact-name: left_pad
 
   # 右半：小红点
   - board: sofle_dongle_right
-    shield: lpm_view;right_trackpoint_dongle
+    shield: lpm_view;trackpoint
     artifact-name: right_point
 
   # settings_reset 恢复固件，与上面一一对应
@@ -25,11 +25,11 @@ include:
     shield: st7789_display;settings_reset
     artifact-name: dongle_reset
   - board: sofle_dongle_left
-    shield: lpm_view;left_bbtrackball_dongle;settings_reset
+    shield: lpm_view;bbtrackball;settings_reset
     artifact-name: left_ball_reset
   - board: sofle_dongle_left
-    shield: lpm_view;left_bbtrackpad_dongle;settings_reset
+    shield: lpm_view;bbtrackpad;settings_reset
     artifact-name: left_pad_reset
   - board: sofle_dongle_right
-    shield: lpm_view;right_trackpoint_dongle;settings_reset
+    shield: lpm_view;trackpoint;settings_reset
     artifact-name: right_point_reset

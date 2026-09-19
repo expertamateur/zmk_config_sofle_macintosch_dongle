@@ -1,8 +1,8 @@
 # Copyright (c) 2022 The ZMK Contributors
 # SPDX-License-Identifier: MIT
 
-config SHIELD_LEFT_BBTRACKBALL_DONGLE
-    def_bool $(shields_list_contains,left_bbtrackball_dongle)
+config SHIELD_BBTRACKBALL
+    def_bool $(shields_list_contains,bbtrackball)
 
 menu "BBtrackball Setting"
 

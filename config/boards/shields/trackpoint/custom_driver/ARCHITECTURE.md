@@ -99,5 +99,5 @@ fy = delta_y × BASE_SPEED × sens × mult
 
 ## 涉及文件
 
-- `config/boards/shields/right_trackpoint_dongle/custom_driver_right/trackpoint_0x15.c`
+- `config/boards/shields/trackpoint/custom_driver/trackpoint_0x15.c`
   — 全部改动在此文件

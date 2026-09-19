@@ -74,7 +74,7 @@ static struct k_work_q a320_workq;
  */
 
 #if !defined(CONFIG_BOARD_SOFLE_DONGLE_LEFT)
-#error "bbtrackpad_dongle 目前只有左座引脚定义（见 MODULAR_POINTER_ANALYSIS.md §4.1）；右座引脚源码里不存在，拒绝编出一份接不上的固件。"
+#error "bbtrackpad 目前只有左座引脚定义（见 MODULAR_POINTER_ANALYSIS.md §4.1）；右座引脚源码里不存在，拒绝编出一份接不上的固件。"
 #endif
 
 #if CONFIG_A320_MOTION_GPIO_PORT == 0
