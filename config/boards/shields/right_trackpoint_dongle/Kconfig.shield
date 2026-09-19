@@ -13,18 +13,18 @@ config TRACKPOINT_EXPONENTIAL
       Enable exponential acceleration for TrackPoint movement,
       similar to trackball behavior.
 
-config TRACKPOINT_TOGGLE_KEY_POSITION
-    int "Key position to toggle mouse/scroll mode"
+config TRACKPOINT_MOUSE_KEY_POSITION_1
+    int "Key position 1 that switches the trackpoint to mouse movement"
+    default 61
+    help
+      ZMK position code. While this key (or _2) is held, the trackpoint
+      reports REL_X/REL_Y; otherwise it reports the scroll wheel.
+
+config TRACKPOINT_MOUSE_KEY_POSITION_2
+    int "Key position 2 that switches the trackpoint to mouse movement"
     default 62
     help
-      ZMK position code of the key used to toggle between mouse and scroll mode.
-
-config TRACKPOINT_START_IN_SCROLL_MODE
-    bool "Start in scroll mode by default"
-    default y
-    help
-      If yes (y), the default state is scroll mode, and holding the toggle key switches to mouse mode.
-      If no (n), the default state is mouse mode, and holding the toggle key switches to scroll mode.
+      See TRACKPOINT_MOUSE_KEY_POSITION_1.
 
 config TRACKPOINT_SCROLL_X_DIR
     int "Scroll X direction multiplier (1 for normal, -1 for inverted)"

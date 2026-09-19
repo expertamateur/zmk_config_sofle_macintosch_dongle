@@ -2,6 +2,15 @@
  * TrackPoint HID over I2C Driver — Accumulate + timer-driven report
  * Stability infra from ZitaoTech + toggle-key mode preserved.
  * SPDX-License-Identifier: MIT
+ *
+ * 指针语义（三个指点设备统一，见 MODULAR_POINTER_ANALYSIS.md）：
+ *
+ *   | 状态                           | 输出                   |
+ *   |--------------------------------|------------------------|
+ *   | 默认                           | 滚轮 WHEEL / HWHEEL    |
+ *   | 按住 MOUSE_KEY_POSITION_1 或 2 | 鼠标移动 REL_X / REL_Y |
+ *
+ * 本文件不产生任何按键事件（无 input_report_key），不做方向键。
  */
 
 #define DT_DRV_COMPAT zmk_trackpoint
@@ -74,10 +83,13 @@ static uint32_t last_activity_time;
 #define MAX_PACKETS_PER_WORK 32
 #define REPORT_INTERVAL_MS 8
 
-#define TOGGLE_POSITION_CODE CONFIG_TRACKPOINT_TOGGLE_KEY_POSITION
+/* 按住其中任意一个键位 -> 鼠标移动；都不按 -> 滚轮（默认滚轮） */
+#define MOUSE_KEY_POSITION_1 CONFIG_TRACKPOINT_MOUSE_KEY_POSITION_1
+#define MOUSE_KEY_POSITION_2 CONFIG_TRACKPOINT_MOUSE_KEY_POSITION_2
 
 /* ========= 全局状态 ========= */
-static bool toggle_key_pressed;
+static bool mouse_key_1_pressed;
+static bool mouse_key_2_pressed;
 
 /* ========= 累加器 — 无锁，由 k_work_q 串行化保证安全 ========= */
 struct tp_snapshot {
@@ -89,18 +101,20 @@ struct tp_snapshot {
 };
 static struct tp_snapshot snap;
 
-/* ========= 模式切换按键监听（保留 Dongle toggle 逻辑） ========= */
-static int toggle_listener_cb(const zmk_event_t *eh) {
+/* ========= 模式切换按键监听 ========= */
+static int mouse_key_listener_cb(const zmk_event_t *eh) {
 	const struct zmk_position_state_changed *ev = as_zmk_position_state_changed(eh);
 	if (!ev) return 0;
 
-	if (ev->position == TOGGLE_POSITION_CODE) {
-		toggle_key_pressed = ev->state;
+	if (ev->position == MOUSE_KEY_POSITION_1) {
+		mouse_key_1_pressed = ev->state;
+	} else if (ev->position == MOUSE_KEY_POSITION_2) {
+		mouse_key_2_pressed = ev->state;
 	}
 	return 0;
 }
-ZMK_LISTENER(trackpoint_toggle_listener, toggle_listener_cb);
-ZMK_SUBSCRIPTION(trackpoint_toggle_listener, zmk_position_state_changed);
+ZMK_LISTENER(trackpoint_mouse_key_listener, mouse_key_listener_cb);
+ZMK_SUBSCRIPTION(trackpoint_mouse_key_listener, zmk_position_state_changed);
 
 struct trackpoint_config {
 	struct i2c_dt_spec i2c;
@@ -247,10 +261,8 @@ static void report_work_cb(struct k_work *work) {
 		return;
 	}
 
-	/* ===== 模式判定 ===== */
-	bool is_scroll_mode = IS_ENABLED(CONFIG_TRACKPOINT_START_IN_SCROLL_MODE)
-			      ? !toggle_key_pressed
-			      : toggle_key_pressed;
+	/* ===== 模式判定：默认滚轮，按住模式键才走鼠标 ===== */
+	bool is_scroll_mode = !(mouse_key_1_pressed || mouse_key_2_pressed);
 
 	if (is_scroll_mode) {
 		/* 进入滚轮模式时用当前位移初始化残留值 */

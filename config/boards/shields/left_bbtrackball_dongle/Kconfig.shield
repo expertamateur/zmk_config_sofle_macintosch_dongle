@@ -16,5 +16,19 @@ config BBtrackball_max_brightness
     range 0 100
     help
       The brightness when you move the BB trackball
-      
+
+config BBTRACKBALL_MOUSE_KEY_POSITION_1
+    int "Key position 1 that switches the trackball to mouse movement"
+    default 61
+    help
+      ZMK position code. While this key (or _2) is held, the trackball
+      reports REL_X/REL_Y; otherwise it reports the scroll wheel.
+      Defaults 61/62 are the two thumb keys on the mouse layer.
+
+config BBTRACKBALL_MOUSE_KEY_POSITION_2
+    int "Key position 2 that switches the trackball to mouse movement"
+    default 62
+    help
+      See BBTRACKBALL_MOUSE_KEY_POSITION_1.
+
 endmenu

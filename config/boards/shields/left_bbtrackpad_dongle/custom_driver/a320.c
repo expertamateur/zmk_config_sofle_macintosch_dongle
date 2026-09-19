@@ -3,6 +3,15 @@
  * Interrupt-driven version (minimal modification)
  * Copyright (c) 2025 ZitaoTech
  * SPDX-License-Identifier: MIT
+ *
+ * 指针语义（三个指点设备统一，见 MODULAR_POINTER_ANALYSIS.md）：
+ *
+ *   | 状态                           | 输出                   |
+ *   |--------------------------------|------------------------|
+ *   | 默认                           | 滚轮 WHEEL / HWHEEL    |
+ *   | 按住 MOUSE_KEY_POSITION_1 或 2 | 鼠标移动 REL_X / REL_Y |
+ *
+ * 本文件不产生任何按键事件（无 input_report_key），不做方向键。
  */
 
 #define DT_DRV_COMPAT avago_a320
@@ -19,9 +28,7 @@
 #include <zephyr/input/input.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/byteorder.h>
-#include <zmk/events/hid_indicators_changed.h>
 #include <zephyr/dt-bindings/input/input-event-codes.h>
-#include <zmk/hid.h>
 
 #include "trackpad_led.h"
 #include "a320.h"
@@ -46,17 +53,6 @@ static struct k_work_q a320_workq;
 #define SCROLL_X_DIR (-CONFIG_A320_SCROLL_X_DIR)
 #define SCROLL_Y_DIR CONFIG_A320_SCROLL_Y_DIR
 
-// --- 滚轮灵敏度与粒度配置 ---
-#define SCROLL_INPUT_MAX CONFIG_A320_SCROLL_INPUT_MAX
-#define SCROLL_DIVISOR_SLOW CONFIG_A320_SCROLL_DIVISOR_SLOW
-#define SCROLL_DIVISOR_FAST CONFIG_A320_SCROLL_DIVISOR_FAST
-
-// --- Arrow key threshold / divisor ---
-#define ARROW_DEADZONE CONFIG_A320_SCROLL_DEADZONE
-#define ARROW_INPUT_MAX 128
-#define ARROW_DIVISOR_SLOW CONFIG_A320_SCROLL_DIVISOR_SLOW
-#define ARROW_DIVISOR_FAST CONFIG_A320_SCROLL_DIVISOR_FAST
-
 // --- 防误触锁定比例配置 ---
 #define DOMINANT_NUMERATOR CONFIG_A320_DOMINANT_NUMERATOR
 #define DOMINANT_DENOMINATOR CONFIG_A320_DOMINANT_DENOMINATOR
@@ -77,62 +73,36 @@ static struct k_work_q a320_workq;
 #define A320_I2C_ADDR_37 0x37
 #define A320_DEFAULT_I2C_ADDR A320_I2C_ADDR_37
 
-#define SLOW_KEY_MULTIPLIER 0.5f
+/* 按住其中任意一个键位 -> 鼠标移动；都不按 -> 滚轮 */
+#define MOUSE_KEY_POSITION_1 CONFIG_A320_MOUSE_KEY_POSITION_1
+#define MOUSE_KEY_POSITION_2 CONFIG_A320_MOUSE_KEY_POSITION_2
+
 #define TOUCH_IDLE_TIMEOUT 50 // 30~80ms 看手感
 /* ========= Watch Dog ========= */
 static uint32_t last_activity_time = 0;
 #define A320_WDT_TIMEOUT 200
 /* ========= 全局状态 ========= */
-static bool scroll_key_pressed = false;
-static bool arrow_key_pressed = false;
-static bool slow_key_pressed = false;
-static bool last_arrow_key_pressed = false;
+static bool mouse_key_1_pressed = false;
+static bool mouse_key_2_pressed = false;
 uint32_t last_packet_time = 0;
 static bool touched = false;
 
-/* ==== HID indicators ==== */
-static zmk_hid_indicators_t current_indicators;
-#define HID_INDICATORS_CAPS_LOCK (1 << 1)
-/* =========================
- *   HID indicator listener
- * ========================= */
-static int hid_indicators_listener(const zmk_event_t *eh) {
-    const struct zmk_hid_indicators_changed *ev = as_zmk_hid_indicators_changed(eh);
-    if (ev) {
-        current_indicators = ev->indicators;
-    }
-    return ZMK_EV_EVENT_BUBBLE;
-}
-
-ZMK_LISTENER(a320_hid_listener, hid_indicators_listener);
-ZMK_SUBSCRIPTION(a320_hid_listener, zmk_hid_indicators_changed);
-
-/* ========= Space + Slow 按键监听 ========= */
-static int special_key_listener_cb(const zmk_event_t *eh) {
+/* ========= 模式切换按键监听 ========= */
+static int mouse_key_listener_cb(const zmk_event_t *eh) {
     const struct zmk_position_state_changed *ev = as_zmk_position_state_changed(eh);
     if (!ev)
         return 0;
-    if (ev->position == 35) {
-        arrow_key_pressed = ev->state;
-        LOG_INF("Arrow position=49 %s", arrow_key_pressed ? "PRESSED" : "RELEASED");
-    }
 
-    // Scroll key (Space)
-    if (ev->position == 62) {
-        scroll_key_pressed = ev->state;
-        LOG_INF("space position=49 %s", scroll_key_pressed ? "PRESSED" : "RELEASED");
-    }
-
-    // ★ NEW: Slow key
-    if (ev->position == 37) {
-        slow_key_pressed = ev->state;
-        LOG_INF("slow_key position=37 %s", slow_key_pressed ? "PRESSED" : "RELEASED");
+    if (ev->position == MOUSE_KEY_POSITION_1) {
+        mouse_key_1_pressed = ev->state;
+    } else if (ev->position == MOUSE_KEY_POSITION_2) {
+        mouse_key_2_pressed = ev->state;
     }
 
     return 0;
 }
-ZMK_LISTENER(a320_special_key_listener, special_key_listener_cb);
-ZMK_SUBSCRIPTION(a320_special_key_listener, zmk_position_state_changed);
+ZMK_LISTENER(a320_mouse_key_listener, mouse_key_listener_cb);
+ZMK_SUBSCRIPTION(a320_mouse_key_listener, zmk_position_state_changed);
 
 struct a320_config {
     struct i2c_dt_spec i2c;
@@ -154,8 +124,6 @@ struct a320_data {
     bool last_scroll_mode;
     float scroll_residue_x;
     float scroll_residue_y;
-    int16_t arrow_residue_x;
-    int16_t arrow_residue_y;
 };
 
 /* Read the selected variant's registers, always releasing the I2C mutex. */
@@ -254,45 +222,6 @@ static inline void process_cm5_scroll(const struct device *dev, struct a320_data
     }
 }
 
-static inline void process_arrow_axis(const struct device *dev, int16_t delta, int16_t *residue,
-                                      uint16_t key_neg, uint16_t key_pos) {
-
-    int abs_delta = abs(delta);
-
-    if (abs_delta <= ARROW_DEADZONE) {
-        return;
-    }
-
-    if (abs_delta > ARROW_INPUT_MAX) {
-        abs_delta = ARROW_INPUT_MAX;
-    }
-
-    // ★ 非线性 divisor（更丝滑）
-    float t = (float)abs_delta / SCROLL_INPUT_MAX;
-    t = t * t;
-
-    float f_div = SCROLL_DIVISOR_SLOW - (SCROLL_DIVISOR_SLOW - SCROLL_DIVISOR_FAST) * t;
-
-    int divisor = (int)f_div;
-    if (divisor < 1)
-        divisor = 1;
-
-    *residue += delta; // 替换掉 dir_mult
-    int16_t arrow_ticks = *residue / divisor;
-    if (arrow_ticks != 0) {
-        uint16_t key = (arrow_ticks > 0) ? key_pos : key_neg;
-
-        // 触发 key press + release（脉冲）
-        input_report_key(dev, key, 1, true, K_FOREVER);
-        input_report_key(dev, key, 0, true, K_FOREVER);
-
-        *residue %= divisor;
-    }
-
-    // 阻尼（防止漂移）
-    *residue = (*residue * 3) / 4;
-}
-
 static void a320_work_cb(struct k_work *work) {
     struct a320_data *data = CONTAINER_OF(work, struct a320_data, work);
     const struct device *dev = data->dev;
@@ -307,10 +236,6 @@ static void a320_work_cb(struct k_work *work) {
         data->scroll_residue_y = 0.0f;
         data->last_scroll_time = 0;
         data->last_scroll_mode = false;
-        data->arrow_residue_x = 0;
-        data->arrow_residue_y = 0;
-
-        last_arrow_key_pressed = arrow_key_pressed;
 
         touched = false;
         return;
@@ -359,10 +284,9 @@ static void a320_work_cb(struct k_work *work) {
     int16_t dx = total_dx;
     int16_t dy = total_dy;
 
-    /* ========= scroll / arrow mode 切换检测 ========= */
-    bool just_enter_arrow = arrow_key_pressed && !last_arrow_key_pressed;
-    bool capslock = current_indicators & HID_INDICATORS_CAPS_LOCK;
-    bool scroll_mode = scroll_key_pressed || capslock;
+    /* ========= 模式判定：默认滚轮，按住模式键才走鼠标 ========= */
+    bool mouse_mode = mouse_key_1_pressed || mouse_key_2_pressed;
+    bool scroll_mode = !mouse_mode;
 
     if (scroll_mode && !data->last_scroll_mode) {
         data->scroll_residue_x = 0.0f;
@@ -370,51 +294,37 @@ static void a320_work_cb(struct k_work *work) {
         data->last_scroll_time = 0;
     }
 
-    if (arrow_key_pressed) {
-
-        if (just_enter_arrow) {
-            data->arrow_residue_x = dx;
-            data->arrow_residue_y = dy;
-        }
-
-        int abs_dx = abs(dx);
-        int abs_dy = abs(dy);
-
-        if (abs_dy * DOMINANT_DENOMINATOR > abs_dx * DOMINANT_NUMERATOR) {
-            dx = 0;
-        } else if (abs_dx * DOMINANT_DENOMINATOR > abs_dy * DOMINANT_NUMERATOR) {
-            dy = 0;
-        } else {
-            dx = 0;
-            dy = 0;
-        }
-
-        process_arrow_axis(dev, dx, &data->arrow_residue_x, INPUT_BTN_1, INPUT_BTN_0);
-
-        process_arrow_axis(dev, dy, &data->arrow_residue_y, INPUT_BTN_3, INPUT_BTN_2);
-    } else if (scroll_mode) {
-        /* Keep this board's original X/Y axes and scroll directions. */
-        int16_t scroll_x = dx * SCROLL_X_DIR;
-        int16_t scroll_y = dy * SCROLL_Y_DIR;
-        process_cm5_scroll(dev, data, scroll_x, scroll_y, now);
-    } else if (!capslock) {
-
+    if (mouse_mode) {
         uint8_t a320_led_brt = indicator_tp_get_last_valid_brightness();
         float a320_factor = 0.4f + 0.01f * a320_led_brt;
 
-        float slow_mult = slow_key_pressed ? SLOW_KEY_MULTIPLIER : 1.0f;
-
-        float fx = dx * 3 / 4 * a320_factor * slow_mult;
-        float fy = dy * 3 / 4 * a320_factor * slow_mult;
+        float fx = dx * 3 / 4 * a320_factor;
+        float fy = dy * 3 / 4 * a320_factor;
 
         input_report_rel(dev, INPUT_REL_X, (int)fx, false, K_NO_WAIT);
         input_report_rel(dev, INPUT_REL_Y, (int)fy, true, K_NO_WAIT);
     } else {
-        touched = false;
+        /* Keep this board's original X/Y axes and scroll directions. */
+        int16_t scroll_x = dx * SCROLL_X_DIR;
+        int16_t scroll_y = dy * SCROLL_Y_DIR;
+
+        /* 主导轴锁定：斜着划的时候只认更强势的那一轴，避免页面被横拖 */
+        int abs_x = abs(scroll_x);
+        int abs_y = abs(scroll_y);
+
+        if (abs_y * DOMINANT_DENOMINATOR > abs_x * DOMINANT_NUMERATOR) {
+            scroll_x = 0;
+        } else if (abs_x * DOMINANT_DENOMINATOR > abs_y * DOMINANT_NUMERATOR) {
+            scroll_y = 0;
+        } else {
+            scroll_x = 0;
+            scroll_y = 0;
+        }
+
+        process_cm5_scroll(dev, data, scroll_x, scroll_y, now);
     }
 
-    data->last_scroll_mode = scroll_mode && !arrow_key_pressed;
-    last_arrow_key_pressed = arrow_key_pressed;
+    data->last_scroll_mode = scroll_mode;
     touched = false;
     data->last_packet_time = now;
 }

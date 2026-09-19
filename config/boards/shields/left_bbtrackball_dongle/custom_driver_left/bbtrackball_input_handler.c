@@ -4,6 +4,16 @@
  *
  * + Dedicated workqueue version (NO system workqueue)
  *
+ * 指针语义（三个指点设备统一，见 MODULAR_POINTER_ANALYSIS.md）：
+ *
+ *   | 状态                          | 输出                          |
+ *   |-------------------------------|-------------------------------|
+ *   | 默认                          | 滚轮 WHEEL / HWHEEL           |
+ *   | 按住 MOUSE_KEY_POSITION_1 或 2 | 鼠标移动 REL_X / REL_Y        |
+ *
+ * 即「指针设备跟随层」：键位在 mouse 层上，按住就切到鼠标移动。
+ * 本文件不产生任何按键事件（无 input_report_key），不做方向键。
+ *
  * SPDX-License-Identifier: MIT
  */
 
@@ -18,8 +28,6 @@
 #include <math.h>
 #include <stdlib.h>
 
-#include <zmk/hid.h>
-#include <zmk/events/hid_indicators_changed.h>
 #include <zmk/events/position_state_changed.h>
 
 LOG_MODULE_REGISTER(bbtrackball_input_handler, LOG_LEVEL_INF);
@@ -56,30 +64,22 @@ static struct k_work_q bbtrackball_work_q;
 
 #define MOVE_IDLE_TIMEOUT 30
 
-#define ARROW_TRIGGER_THRESHOLD 4
-#define ARROW_REPEAT_MS 35
+/* 按住其中任意一个键位 -> 鼠标移动；都不按 -> 滚轮 */
+#define MOUSE_KEY_POSITION_1 CONFIG_BBTRACKBALL_MOUSE_KEY_POSITION_1
+#define MOUSE_KEY_POSITION_2 CONFIG_BBTRACKBALL_MOUSE_KEY_POSITION_2
 
 /* =========================================================
  * Runtime State
  * ========================================================= */
 
 static bool moved = false;
-static bool space_pressed = false;
-static bool arrow_key_pressed = false;
+static bool mouse_key_1_pressed = false;
+static bool mouse_key_2_pressed = false;
 
 static int dx_acc = 0;
 static int dy_acc = 0;
 
 static uint32_t last_move_time = 0;
-static uint32_t last_arrow_trigger = 0;
-
-/* =========================================================
- * HID indicators
- * ========================================================= */
-
-static zmk_hid_indicators_t current_indicators;
-
-#define HID_INDICATORS_CAPS_LOCK (1 << 1)
 
 /* =========================================================
  * GPIO Input Description
@@ -122,48 +122,31 @@ struct bbtrackball_data {
     struct bb_gpio_cb gpio_cbs[ARRAY_SIZE(dir_inputs)];
 };
 
-/* =========================================================
- * HID indicator listener
- * ========================================================= */
-
-static int hid_indicators_listener(const zmk_event_t *eh) {
-    const struct zmk_hid_indicators_changed *ev = as_zmk_hid_indicators_changed(eh);
-    if (ev) {
-        current_indicators = ev->indicators;
-    }
-    return ZMK_EV_EVENT_BUBBLE;
-}
-
-ZMK_LISTENER(a320_hid_listener, hid_indicators_listener);
-ZMK_SUBSCRIPTION(a320_hid_listener, zmk_hid_indicators_changed);
-
 /* ========================================================= */
 
 bool trackball_is_active(void) { return (k_uptime_get_32() - last_move_time) < 40; }
 
 /* =========================================================
- * Position listener
+ * 模式键 listener
  * ========================================================= */
 
-static int space_listener_cb(const zmk_event_t *eh) {
+static int mouse_key_listener_cb(const zmk_event_t *eh) {
     const struct zmk_position_state_changed *ev = as_zmk_position_state_changed(eh);
 
     if (!ev)
-        return 0;
+        return ZMK_EV_EVENT_BUBBLE;
 
-    if (ev->position == 32) {
-        arrow_key_pressed = ev->state;
+    if (ev->position == MOUSE_KEY_POSITION_1) {
+        mouse_key_1_pressed = ev->state;
+    } else if (ev->position == MOUSE_KEY_POSITION_2) {
+        mouse_key_2_pressed = ev->state;
     }
 
-    if (ev->position == 61) {
-        space_pressed = ev->state;
-    }
-
-    return 0;
+    return ZMK_EV_EVENT_BUBBLE;
 }
 
-ZMK_LISTENER(space_listener, space_listener_cb);
-ZMK_SUBSCRIPTION(space_listener, zmk_position_state_changed);
+ZMK_LISTENER(bbtrackball_mouse_key_listener, mouse_key_listener_cb);
+ZMK_SUBSCRIPTION(bbtrackball_mouse_key_listener, zmk_position_state_changed);
 
 /* =========================================================
  * GPIO interrupt callback
@@ -236,44 +219,14 @@ static void bbtrackball_work_handler(struct k_work *work) {
     last_move_time = now;
     moved = true;
 
-    bool capslock = current_indicators & HID_INDICATORS_CAPS_LOCK;
-
-    if (arrow_key_pressed) {
-
-        int abs_dx = abs(dx);
-        int abs_dy = abs(dy);
-
-        if (abs_dx < ARROW_TRIGGER_THRESHOLD && abs_dy < ARROW_TRIGGER_THRESHOLD) {
-            return;
-        }
-
-        if (now - last_arrow_trigger < ARROW_REPEAT_MS) {
-            return;
-        }
-
-        last_arrow_trigger = now;
-
-        uint16_t key = 0;
-
-        if (abs_dx > abs_dy)
-            key = (dx > 0) ? INPUT_BTN_1 : INPUT_BTN_0;
-        else
-            key = (dy > 0) ? INPUT_BTN_3 : INPUT_BTN_2;
-
-        input_report_key(dev, key, 1, false, K_NO_WAIT);
-        input_report_key(dev, key, 0, true, K_NO_WAIT);
-
+    if (mouse_key_1_pressed || mouse_key_2_pressed) {
+        input_report_rel(dev, INPUT_REL_X, -dx, false, K_NO_WAIT);
+        input_report_rel(dev, INPUT_REL_Y, -dy, true, K_NO_WAIT);
         return;
     }
 
-    if (space_pressed || capslock) {
-        input_report_rel(dev, INPUT_REL_HWHEEL, -dx, false, K_NO_WAIT);
-        input_report_rel(dev, INPUT_REL_WHEEL, dy, true, K_NO_WAIT);
-        return;
-    }
-
-    input_report_rel(dev, INPUT_REL_X, -dx, false, K_NO_WAIT);
-    input_report_rel(dev, INPUT_REL_Y, -dy, true, K_NO_WAIT);
+    input_report_rel(dev, INPUT_REL_HWHEEL, -dx, false, K_NO_WAIT);
+    input_report_rel(dev, INPUT_REL_WHEEL, dy, true, K_NO_WAIT);
 }
 
 /* =========================================================
