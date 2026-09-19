@@ -67,32 +67,5 @@
     device = <&trackpoint>;
 };
 
-&pinctrl {
-        i2c0_default: i2c0_default {
-        group1 {
-            psels = <NRF_PSEL(TWIM_SDA, 0, 7)>,
-                <NRF_PSEL(TWIM_SCL, 1, 8)>;
-        };
-    };
-
-    i2c0_sleep: i2c0_sleep {
-        group1 {
-            psels = <NRF_PSEL(TWIM_SDA, 0, 7)>,
-                <NRF_PSEL(TWIM_SCL, 1, 8)>;
-            low-power-enable;
-        };
-    };
-    pwm1_default: pwm1_default {
-        group1 {
-            psels = <NRF_PSEL(PWM_OUT0, 0, 4)>; // Custom led
-        };
-    };
-
-    pwm1_sleep: pwm1_sleep {
-        group1 {
-            psels = <NRF_PSEL(PWM_OUT0, 0, 4)>;
-            bias-pull-down;
-        };
-    };
-};
+/* 引脚定义在 config/sofle_dongle_right.overlay（属于板子，不属于模块） */
 

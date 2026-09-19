@@ -62,10 +62,30 @@ static struct k_work_q a320_workq;
 #define MOUSE_SENS_BASE (CONFIG_A320_MOUSE_SENS_BASE_PERCENT / 100.0f)
 #define MOUSE_SENS_STEP (CONFIG_A320_MOUSE_SENS_STEP_PERCENT / 100.0f)
 
-/* ========= Motion GPIO ========= */
+/* ========= 模块插座引脚（MOTION 中断线）=========
+ *
+ * 引脚号/端口号在 Kconfig 里，具体值写在 config/sofle_dongle_left.conf；
+ * 本文件不写死脚号。设备树预处理看不到 Kconfig 值，所以用 #if 把端口号翻成
+ * 节点标签，翻不出来（-1 = 该侧还没定义）就编译失败。
+ *
+ * 触摸板目前只有左座数据（MODULAR_POINTER_ANALYSIS.md §4.1）：
+ *   MOTION P0.05（和轨迹球的 UP 是同一根线）
+ * I2C 那两根在 config/sofle_dongle_left.overlay 里。
+ */
 
+#if !defined(CONFIG_BOARD_SOFLE_DONGLE_LEFT)
+#error "bbtrackpad_dongle 目前只有左座引脚定义（见 MODULAR_POINTER_ANALYSIS.md §4.1）；右座引脚源码里不存在，拒绝编出一份接不上的固件。"
+#endif
+
+#if CONFIG_A320_MOTION_GPIO_PORT == 0
 #define MOTION_GPIO_NODE DT_NODELABEL(gpio0)
-#define MOTION_GPIO_PIN 5
+#elif CONFIG_A320_MOTION_GPIO_PORT == 1
+#define MOTION_GPIO_NODE DT_NODELABEL(gpio1)
+#else
+#error "CONFIG_A320_MOTION_GPIO_PORT 未定义（-1）或超出 0/1；见 config/sofle_dongle_left.conf"
+#endif
+
+#define MOTION_GPIO_PIN CONFIG_A320_MOTION_GPIO_PIN
 #define MOTION_GPIO_FLAGS (GPIO_ACTIVE_LOW | GPIO_PULL_UP)
 
 /* ========= A320 常量 ========= */

@@ -76,8 +76,28 @@ static uint32_t last_activity_time;
 #define TRACKPOINT_PACKET_LEN 7
 #define TRACKPOINT_MAGIC_BYTE0 0x50
 
+/* 模块插座引脚（MOTION 中断线）
+ *
+ * 引脚号/端口号在 Kconfig 里，具体值写在 config/sofle_dongle_right.conf；
+ * 本文件不写死脚号。设备树预处理看不到 Kconfig 值，所以用 #if 把端口号翻成
+ * 节点标签，翻不出来（-1 = 该侧还没定义）就编译失败。
+ *
+ * 小红点只有右座数据（MODULAR_POINTER_ANALYSIS.md §4.2）：MOTION P0.14。
+ * I2C 那两根在 config/sofle_dongle_right.overlay 里。
+ */
+#if !defined(CONFIG_BOARD_SOFLE_DONGLE_RIGHT)
+#error "trackpoint_dongle 目前只有右座引脚定义（见 MODULAR_POINTER_ANALYSIS.md §4.2）；左座引脚源码里不存在，拒绝编出一份接不上的固件。"
+#endif
+
+#if CONFIG_TRACKPOINT_MOTION_GPIO_PORT == 0
 #define MOTION_GPIO_NODE DT_NODELABEL(gpio0)
-#define MOTION_GPIO_PIN 14
+#elif CONFIG_TRACKPOINT_MOTION_GPIO_PORT == 1
+#define MOTION_GPIO_NODE DT_NODELABEL(gpio1)
+#else
+#error "CONFIG_TRACKPOINT_MOTION_GPIO_PORT 未定义（-1）或超出 0/1；见 config/sofle_dongle_right.conf"
+#endif
+
+#define MOTION_GPIO_PIN CONFIG_TRACKPOINT_MOTION_GPIO_PIN
 #define MOTION_GPIO_FLAGS (GPIO_ACTIVE_LOW | GPIO_PULL_UP)
 
 #define MAX_PACKETS_PER_WORK 32

@@ -102,13 +102,6 @@
     pinctrl-names = "default", "sleep";
 };
 
-&pwm1 {
-    status = "okay";
-    pinctrl-0 = <&pwm1_default>;
-    pinctrl-1 = <&pwm1_sleep>;
-    pinctrl-names = "default", "sleep";
-};
-
 &pwm2 {
     status = "okay";
     pinctrl-0 = <&pwm2_default>;

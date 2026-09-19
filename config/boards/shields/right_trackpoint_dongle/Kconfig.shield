@@ -93,3 +93,21 @@ config CUSTOM_LED_BRT_STEP
       The amount of brightness added or subtracted per key press.
 
 endmenu
+
+menu "TrackPoint Socket Pins"
+
+# 模块插座上的 MOTION 中断线接到哪只脚。I2C 那两根是设备树的事
+# （config/sofle_dongle_right.overlay），这里只管驱动自己配的 GPIO。
+# 只有右座数据（MODULAR_POINTER_ANALYSIS.md §4.2）：MOTION P0.14。
+
+config TRACKPOINT_MOTION_GPIO_PORT
+    int "GPIO port number (0 or 1) of the trackpoint MOTION line"
+    default -1
+    help
+      -1 means "not defined for this side yet"; the driver then fails the build.
+
+config TRACKPOINT_MOTION_GPIO_PIN
+    int "GPIO pin number of the trackpoint MOTION line"
+    default -1
+
+endmenu

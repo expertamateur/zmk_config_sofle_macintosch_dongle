@@ -43,16 +43,61 @@ K_THREAD_STACK_DEFINE(bbtrackball_workq_stack, BBTRACKBALL_WORKQ_STACK_SIZE);
 static struct k_work_q bbtrackball_work_q;
 
 /* =========================================================
- * GPIO Pins
- * ========================================================= */
+ * 模块插座引脚（四根方向线）
+ * =========================================================
+ *
+ * 引脚号/端口号都在 Kconfig 里，具体值写在 config/sofle_dongle_left.conf；
+ * 本文件不再出现任何写死的脚号。设备树预处理看不到 Kconfig 值，所以下面要用
+ * #if 把端口号翻成节点标签——翻不出来（-1 = 该侧还没定义）就直接编译失败，
+ * 与「没有引脚定义就拒绝编译」是同一套待遇。
+ *
+ * 轨迹球目前只有左座数据（MODULAR_POINTER_ANALYSIS.md §4.1）：
+ *   UP P0.05 · LEFT P0.12 · DOWN P1.09 · RIGHT P0.27
+ *
+ * 右座引脚资料到位后：把八个 CONFIG_BBTRACKBALL_*_{PORT,PIN} 补进
+ * config/sofle_dongle_right.conf，再把下面那道 #error 换成 #elif。
+ */
 
-#define DOWN_GPIO_PIN 9
-#define LEFT_GPIO_PIN 12
-#define UP_GPIO_PIN 5
-#define RIGHT_GPIO_PIN 27
+#if !defined(CONFIG_BOARD_SOFLE_DONGLE_LEFT)
+#error "bbtrackball_dongle 目前只有左座引脚定义（见 MODULAR_POINTER_ANALYSIS.md §4.1）；右座引脚源码里不存在，拒绝编出一份接不上的固件。"
+#endif
 
-#define GPIO0_DEV DT_NODELABEL(gpio0)
-#define GPIO1_DEV DT_NODELABEL(gpio1)
+#if CONFIG_BBTRACKBALL_UP_GPIO_PORT == 0
+#define UP_GPIO_DEV DT_NODELABEL(gpio0)
+#elif CONFIG_BBTRACKBALL_UP_GPIO_PORT == 1
+#define UP_GPIO_DEV DT_NODELABEL(gpio1)
+#else
+#error "CONFIG_BBTRACKBALL_UP_GPIO_PORT 未定义（-1）或超出 0/1；见 config/sofle_dongle_left.conf"
+#endif
+
+#if CONFIG_BBTRACKBALL_LEFT_GPIO_PORT == 0
+#define LEFT_GPIO_DEV DT_NODELABEL(gpio0)
+#elif CONFIG_BBTRACKBALL_LEFT_GPIO_PORT == 1
+#define LEFT_GPIO_DEV DT_NODELABEL(gpio1)
+#else
+#error "CONFIG_BBTRACKBALL_LEFT_GPIO_PORT 未定义（-1）或超出 0/1；见 config/sofle_dongle_left.conf"
+#endif
+
+#if CONFIG_BBTRACKBALL_DOWN_GPIO_PORT == 0
+#define DOWN_GPIO_DEV DT_NODELABEL(gpio0)
+#elif CONFIG_BBTRACKBALL_DOWN_GPIO_PORT == 1
+#define DOWN_GPIO_DEV DT_NODELABEL(gpio1)
+#else
+#error "CONFIG_BBTRACKBALL_DOWN_GPIO_PORT 未定义（-1）或超出 0/1；见 config/sofle_dongle_left.conf"
+#endif
+
+#if CONFIG_BBTRACKBALL_RIGHT_GPIO_PORT == 0
+#define RIGHT_GPIO_DEV DT_NODELABEL(gpio0)
+#elif CONFIG_BBTRACKBALL_RIGHT_GPIO_PORT == 1
+#define RIGHT_GPIO_DEV DT_NODELABEL(gpio1)
+#else
+#error "CONFIG_BBTRACKBALL_RIGHT_GPIO_PORT 未定义（-1）或超出 0/1；见 config/sofle_dongle_left.conf"
+#endif
+
+#define UP_GPIO_PIN CONFIG_BBTRACKBALL_UP_GPIO_PIN
+#define LEFT_GPIO_PIN CONFIG_BBTRACKBALL_LEFT_GPIO_PIN
+#define DOWN_GPIO_PIN CONFIG_BBTRACKBALL_DOWN_GPIO_PIN
+#define RIGHT_GPIO_PIN CONFIG_BBTRACKBALL_RIGHT_GPIO_PIN
 
 /* =========================================================
  * Config
@@ -94,10 +139,10 @@ typedef struct {
 } DirInput;
 
 static DirInput dir_inputs[] = {
-    {DEVICE_DT_GET(GPIO0_DEV), LEFT_GPIO_PIN, 1, 0, -1},
-    {DEVICE_DT_GET(GPIO0_DEV), RIGHT_GPIO_PIN, 1, 0, +1},
-    {DEVICE_DT_GET(GPIO0_DEV), UP_GPIO_PIN, 1, 0, -1},
-    {DEVICE_DT_GET(GPIO1_DEV), DOWN_GPIO_PIN, 1, 0, +1},
+    {DEVICE_DT_GET(LEFT_GPIO_DEV), LEFT_GPIO_PIN, 1, 0, -1},
+    {DEVICE_DT_GET(RIGHT_GPIO_DEV), RIGHT_GPIO_PIN, 1, 0, +1},
+    {DEVICE_DT_GET(UP_GPIO_DEV), UP_GPIO_PIN, 1, 0, -1},
+    {DEVICE_DT_GET(DOWN_GPIO_DEV), DOWN_GPIO_PIN, 1, 0, +1},
 };
 
 /* ========================================================= */

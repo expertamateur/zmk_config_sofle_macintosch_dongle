@@ -32,3 +32,58 @@ config BBTRACKBALL_MOUSE_KEY_POSITION_2
       See BBTRACKBALL_MOUSE_KEY_POSITION_1.
 
 endmenu
+
+menu "BBtrackball Socket Pins"
+
+# 模块插座上那四根方向线接到哪只脚。引脚不再写死在驱动源码里，值放在
+# config/sofle_dongle_left.conf / config/sofle_dongle_right.conf。
+#
+# default -1 = 「这一侧的引脚还没有定义」。驱动里 #if 判到 -1 会直接
+# #error，而不是默默用 0 号脚编出一份接不上的固件。
+#
+# 目前只有左座数据（MODULAR_POINTER_ANALYSIS.md §4.1）：
+#   UP P0.05 · LEFT P0.12 · DOWN P1.09 · RIGHT P0.27
+# 右座资料到位后，在 config/sofle_dongle_right.conf 里补上这里八项的值。
+
+config BBTRACKBALL_UP_GPIO_PORT
+    int "GPIO port number (0 or 1) of the trackball UP line"
+    default -1
+    help
+      -1 means "not defined for this side yet".
+
+config BBTRACKBALL_UP_GPIO_PIN
+    int "GPIO pin number of the trackball UP line"
+    default -1
+
+config BBTRACKBALL_LEFT_GPIO_PORT
+    int "GPIO port number (0 or 1) of the trackball LEFT line"
+    default -1
+    help
+      -1 means "not defined for this side yet".
+
+config BBTRACKBALL_LEFT_GPIO_PIN
+    int "GPIO pin number of the trackball LEFT line"
+    default -1
+
+config BBTRACKBALL_DOWN_GPIO_PORT
+    int "GPIO port number (0 or 1) of the trackball DOWN line"
+    default -1
+    help
+      -1 means "not defined for this side yet".
+      On the left socket this one is the only line on port 1.
+
+config BBTRACKBALL_DOWN_GPIO_PIN
+    int "GPIO pin number of the trackball DOWN line"
+    default -1
+
+config BBTRACKBALL_RIGHT_GPIO_PORT
+    int "GPIO port number (0 or 1) of the trackball RIGHT line"
+    default -1
+    help
+      -1 means "not defined for this side yet".
+
+config BBTRACKBALL_RIGHT_GPIO_PIN
+    int "GPIO pin number of the trackball RIGHT line"
+    default -1
+
+endmenu
