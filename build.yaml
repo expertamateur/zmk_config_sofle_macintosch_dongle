@@ -20,7 +20,25 @@ include:
     shield: lpm_view;trackpoint
     artifact-name: right_point
 
-  # settings_reset 恢复固件，与上面一一对应
+  # ---------------------------------------------------------------
+  # 以下三个组合**故意编不过**，列在这里是为了让 `zmk_build all` 把
+  # 「哪一侧缺引脚资料」明确报出来，而不是悄悄少编一个固件。
+  # 报错来自驱动顶部的 #error（见 MODULAR_POINTER_ANALYSIS.md §4.4）。
+  # 资料补齐后往 config/sofle_dongle_<side>.conf 填引脚即可转正，
+  # 这里的条目和 shield 名字都不用改。
+  # ---------------------------------------------------------------
+  - board: sofle_dongle_left
+    shield: lpm_view;trackpoint        # 缺：左座小红点引脚
+    artifact-name: left_point
+  - board: sofle_dongle_right
+    shield: lpm_view;bbtrackball       # 缺：右座轨迹球引脚
+    artifact-name: right_ball
+  - board: sofle_dongle_right
+    shield: lpm_view;bbtrackpad        # 缺：右座触摸板引脚
+    artifact-name: right_pad
+
+  # settings_reset 恢复固件，只给能编出来的四个组合挂变体
+  # （上面那三个缺引脚的还没定，装机也不会用到）
   - board: sofle_dongle
     shield: st7789_display;settings_reset
     artifact-name: dongle_reset

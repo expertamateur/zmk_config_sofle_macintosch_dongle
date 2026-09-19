@@ -32,7 +32,9 @@
         };
     };
 
-    /* 触摸板自己加的那颗 LED */
+    /* 触摸板自己加的那颗 LED —— 只有左板引出来了，enable 也一并留在这
+     * 里而不是 shield 里（bbtrackpad.overlay 引用了 pwm3_default，
+     * 放 shield 会让右板在设备树阶段就炸，见那边的注释） */
     pwm3_default: pwm3_default {
         group1 {
             psels = <NRF_PSEL(PWM_OUT0, 0, 16)>;
@@ -61,4 +63,16 @@
             low-power-enable;
         };
     };
+};
+
+/*
+ * 触摸板副 LED 的 enable。本来在 bbtrackpad.overlay 里，但那条 enable 引用
+ * pwm3_default —— 引脚是板级的，插触摸板才有消费者，插轨迹球时这里只是
+ * 留一个没人用的 PWM 设备（开销可忽略）。
+ */
+&pwm3 {
+    status = "okay";
+    pinctrl-0 = <&pwm3_default>;
+    pinctrl-1 = <&pwm3_sleep>;
+    pinctrl-names = "default", "sleep";
 };

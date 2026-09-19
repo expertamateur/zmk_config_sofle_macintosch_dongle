@@ -32,14 +32,6 @@
     pinctrl-names = "default", "sleep";
 };
 
-&pwm3 {
-    status = "okay";
-    pinctrl-0 = <&pwm3_default>;
-    pinctrl-1 = <&pwm3_sleep>;
-    pinctrl-names = "default", "sleep";
-};
-
-
 &i2c0 {
     status = "okay";
     compatible = "nordic,nrf-twim";
@@ -82,5 +74,14 @@
     device = <&bbtrackpad>;
 };
 
-/* 引脚定义在 config/sofle_dongle_left.overlay（属于板子，不属于模块） */
+/*
+ * 引脚定义在 config/sofle_dongle_left.overlay（属于板子，不属于模块）。
+ *
+ * 注意 pwm3 的 enable 也在那个文件里，不在这里：pwm3 是插座上那颗副 LED，
+ * 只有左板把它接出来了。enable 里引用 pwm3_default，而 pwm3_default 是板级
+ * 引脚 —— 放在 shield 里会让右板在设备树阶段就报
+ * "undefined node label 'pwm3_default'"，掩盖掉本来该看到的
+ * 「右座没有触摸板引脚」那条 #error。同理，将来若某侧缺插座引脚，
+ * enable 也该跟着引脚走在板级 overlay 里。
+ */
 
