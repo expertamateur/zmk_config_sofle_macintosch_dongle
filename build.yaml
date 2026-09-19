@@ -1,54 +1,89 @@
 ---
-# artifact-name 是 zmk_build 的目标名，也是 GitHub Actions 的产物名。
-# 同一个 board 上挂多个 shield 时必须显式写，否则目标名会撞车。
+# ZMK 编译目标清单。本地用 `zmk_build` 编译，GitHub Actions 的 zmk 构建也读这个文件。
+#
+# 命名规则：<半别>_<角色>[_<模块>]
+#   - 半别：lf（左手） / rt（右手） / dongle（接收器）
+#   - 角色：master（连主机的那台，中央） / slaver（连中央的那台，外设）
+#   - 模块：ball（轨迹球） / pad（触摸板） / point（小红点）
+# dongle 不存在第二半，所以它直接叫 dongle_master；dongle_master 也永远是中央。
+#
+# 同一块板上挂多个 shield 时必须写 artifact-name：目标名同时是 build/<name>/
+# 目录名和 GHA 产物名，重名会让两个目标互相清空。
+#
+# 只有一套 keymap（config/sofle_dongle.keymap）：0 号位是 dongle 上那颗独立按键，
+# 半板靠 col-offset 够不着（见 custom_driver/matrix_position0_assert.c 的编译期断言）。
 include:
   # 中枢：设备无关，一份通吃（见 MODULAR_POINTER_ANALYSIS.md §1.7）
   - board: dongle_master
     shield: st7789_display
-    artifact-name: dongle
+    artifact-name: dongle_master
 
-  # 左半：轨迹球 / 触摸板
+  # ---------------- 左半 ----------------
+  # 有 dongle：左半当外设
   - board: lf_slaver
     shield: lpm_view;bbtrackball
-    artifact-name: left_ball
+    artifact-name: lf_slaver_ball
   - board: lf_slaver
     shield: lpm_view;bbtrackpad
-    artifact-name: left_pad
+    artifact-name: lf_slaver_pad
 
-  # 右半：小红点
+  # 没 dongle：左半自己连主机，屏幕换成「连了哪台设备」那套
+  - board: lf_master
+    shield: lpm_view;bbtrackball
+    artifact-name: lf_master_ball
+  - board: lf_master
+    shield: lpm_view;bbtrackpad
+    artifact-name: lf_master_pad
+
+  # ---------------- 右半 ----------------
   - board: rt_slaver
     shield: lpm_view;trackpoint
-    artifact-name: right_point
+    artifact-name: rt_slaver_point
+  - board: rt_master
+    shield: lpm_view;trackpoint
+    artifact-name: rt_master_point
 
   # ---------------------------------------------------------------
-  # 以下三个组合**故意编不过**，列在这里是为了让 `zmk_build all` 把
-  # 「哪一侧缺引脚资料」明确报出来，而不是悄悄少编一个固件。
-  # 报错来自驱动顶部的 #error（见 MODULAR_POINTER_ANALYSIS.md §4.4）。
-  # 资料补齐后往 config/boards/arm/sofle_dongle/Kconfig.defconfig 里对应那一半
-  # 填引脚即可转正，
-  # 这里的条目和 shield 名字都不用改。
+  # 以下六个组合**故意不编译**，以注释保留：它们的模块插座引脚资料还没到，
+  # 编了会撞驱动顶部的 #error（引脚表见 MODULAR_POINTER_ANALYSIS.md §4.4）。
+  # 留在这儿是为了让「哪一侧缺哪份资料」一眼可见，而不是悄悄少一个固件。
+  # 资料补齐后：往 config/boards/arm/sofle_dongle/Kconfig.defconfig 里对应那一半
+  # 填引脚，把下面几行取消注释即可 —— 板名、shield 名都不用动。
+  #
+  # - board: lf_slaver
+  #   shield: lpm_view;trackpoint        # 缺：左座小红点引脚
+  #   artifact-name: lf_slaver_point
+  # - board: lf_master
+  #   shield: lpm_view;trackpoint        # 缺：左座小红点引脚
+  #   artifact-name: lf_master_point
+  # - board: rt_slaver
+  #   shield: lpm_view;bbtrackball       # 缺：右座轨迹球引脚
+  #   artifact-name: rt_slaver_ball
+  # - board: rt_slaver
+  #   shield: lpm_view;bbtrackpad        # 缺：右座触摸板引脚
+  #   artifact-name: rt_slaver_pad
+  # - board: rt_master
+  #   shield: lpm_view;bbtrackball       # 缺：右座轨迹球引脚
+  #   artifact-name: rt_master_ball
+  # - board: rt_master
+  #   shield: lpm_view;bbtrackpad        # 缺：右座触摸板引脚
+  #   artifact-name: rt_master_pad
   # ---------------------------------------------------------------
-  - board: lf_slaver
-    shield: lpm_view;trackpoint        # 缺：左座小红点引脚
-    artifact-name: left_point
-  - board: rt_slaver
-    shield: lpm_view;bbtrackball       # 缺：右座轨迹球引脚
-    artifact-name: right_ball
-  - board: rt_slaver
-    shield: lpm_view;bbtrackpad        # 缺：右座触摸板引脚
-    artifact-name: right_pad
 
-  # settings_reset 恢复固件，只给能编出来的四个组合挂变体
-  # （上面那三个缺引脚的还没定，装机也不会用到）
+  # settings_reset 恢复固件：清掉 BLE 配对等设置，每块板一份就够
+  # （shield 只是为了让构建能定下来，reset 固件不带指针驱动）
   - board: dongle_master
     shield: st7789_display;settings_reset
-    artifact-name: dongle_reset
+    artifact-name: dongle_master_reset
   - board: lf_slaver
     shield: lpm_view;bbtrackball;settings_reset
-    artifact-name: left_ball_reset
-  - board: lf_slaver
-    shield: lpm_view;bbtrackpad;settings_reset
-    artifact-name: left_pad_reset
+    artifact-name: lf_slaver_reset
+  - board: lf_master
+    shield: lpm_view;bbtrackball;settings_reset
+    artifact-name: lf_master_reset
   - board: rt_slaver
     shield: lpm_view;trackpoint;settings_reset
-    artifact-name: right_point_reset
+    artifact-name: rt_slaver_reset
+  - board: rt_master
+    shield: lpm_view;trackpoint;settings_reset
+    artifact-name: rt_master_reset

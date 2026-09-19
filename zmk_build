@@ -49,15 +49,11 @@ def gen_targets(data: dict) -> list[dict]:
         # 而重名会让 build/<name>/ 目录互相清空。
         name = t.get("artifact-name")
         if not name:
-            # 退回：按 board 推（老规则，没写 artifact-name 时保持旧行为）
-            if board == "sofle_dongle":
-                name = "dongle"
-            elif board == "sofle_dongle_left":
-                name = "left"
-            elif board == "sofle_dongle_right":
-                name = "right"
-            else:
-                name = board
+            # 退回：直接用板名。板名已经自解释（lf_slaver / rt_master / dongle_master
+            # ……），不再需要「sofle_dongle_left → left」那种老映射。
+            # 注意同一块板挂多种模块时（lf_master 既能装球也能装触摸板）必须显式写
+            # artifact-name，否则会撞名——下面的查重会拦住。
+            name = board
 
             if "settings_reset" in shield:
                 name = f"{name}_reset"
