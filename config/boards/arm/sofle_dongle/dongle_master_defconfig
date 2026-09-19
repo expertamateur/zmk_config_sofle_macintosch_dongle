@@ -30,10 +30,18 @@ CONFIG_FLASH_MAP=y
 CONFIG_BT_CTLR_TX_PWR_PLUS_8=y
 
 # Sleep Setting
+# Dongle 插在电脑上不断电，所以不深睡（=n）、待机拉长到 50 分钟。取值跟原来
+# config/sofle_dongle.conf 里那两行一致，只是搬到这里——它们描述的是「dongle
+# 这块板怎么用」，半板相反（要省电，见 lf_*/rt_*_defconfig）。
 CONFIG_ZMK_SLEEP=n
-CONFIG_ZMK_EXT_POWER=y
 # timeout for backlight for keyboard in miliseconds
-CONFIG_ZMK_IDLE_TIMEOUT=600000                         
+CONFIG_ZMK_IDLE_TIMEOUT=3000000
+
+# 注：ZMK_EXT_POWER 由 app/Kconfig.defaults 统一 default y，defconfig 里的 =n
+# 会被无视（实测 build/dongle/zephyr/.config 为 y），所以这里不再写 =n 造成误会。
+# 对 dongle 无影响：dongle 的设备树里没有 zmk,ext-power-generic 节点
+# （只有 keymap 的 &ext_power 行为，那个也需要有设备才动），这个开关是空转的。
+CONFIG_ZMK_EXT_POWER=y
 
 
 # 5 profiles (n+2)
