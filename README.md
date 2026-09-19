@@ -59,7 +59,7 @@
 // |    `    |    !    |    @    |    #    |    $    |    %    |  trans  |         |  trans  |    +    |    7    |    8    |    9    |    ~    |    ^    |
 // |    ~    |    <    |    -    |    =    |    >    |    _    |                             |    -    |    4    |    5    |    6    |    &    |    |    |
 // |    ^    |    {    |    [    |    ]    |    }    |    $    |  trans  |         |  trans  |    *    |    1    |    2    |    3    |    :    |    '    |
-// |  trans  |    ,    |    (    |    )    |    ;    |  none   |TRNS|TRNS|         |TRNS|TRNS|    %    |    0    |    ,    |    .    |    /    |  trans  |
+// |  trans  |    ,    |    (    |    )    |    ;    |  none   | SLP|PWR |         |TRNS|TRNS|    %    |    0    |    ,    |    .    |    /    |  trans  |
 //                     |  trans  |  trans  |  trans  |  trans  |  trans  |         |  trans  |  trans  |  trans  |  trans  |  trans  |
 // -----------------------------------------------------------------------------------------------------------------------------------------------------------
 ```
@@ -104,7 +104,7 @@
 // [ Layer 2 : Direction & Media ]
 // |  BOOT   | // 该按键在接收器上
 //
-// |   USB   |   BT0   |   BT1   |   BT2   |   BT3   |   BT4   |   PWR   |         |   SLP   |  none   |  none   |  none   |  none   |  none   | BT_CLR  |
+// |   USB   |   BT0   |   BT1   |   BT2   |   BT3   |   BT4   |  none   |         |  none   |  none   |  none   |  none   |  none   |  none   | BT_CLR  |
 // |  none   |  HOME   |    ↑    |   END   |  none   |  none   |                             |  none   |  none   |  none   |  none   |  none   |  none   |
 // |  none   |    ←    |    ↓    |    →    |  none   |  none   |  none   |         |  none   |  LCLK   |  RCLK   |  none   |  none   |  none   |  none   |
 // |  trans  |  PGUP   |   INS   |  PGDN   |  none   |  none   |TRNS|TRNS|         |TRNS|TRNS|  MCLK   |  S+C+A  |  none   |  none   |  none   |  none   |

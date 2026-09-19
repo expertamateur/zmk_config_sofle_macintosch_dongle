@@ -138,7 +138,7 @@ fn_tap: fn_tap {
 // |    `    |    !    |    @    |    #    |    $    |    %    |  trans  |         |  trans  |    +    |    7    |    8    |    9    |    ~    |    ^    |
 // |    ~    |    <    |    -    |    =    |    >    |    _    |                             |    -    |    4    |    5    |    6    |    &    |    |    |
 // |    ^    |    {    |    [    |    ]    |    }    |    $    |  trans  |         |  trans  |    *    |    1    |    2    |    3    |    :    |    '    |
-// |  trans  |    ,    |    (    |    )    |    ;    |  none   |TRNS|TRNS|         |TRNS|TRNS|    %    |    0    |    ,    |    .    |    /    |  trans  |
+// |  trans  |    ,    |    (    |    )    |    ;    |  none   | SLP|PWR |         |TRNS|TRNS|    %    |    0    |    ,    |    .    |    /    |  trans  |
 //                     |  trans  |  trans  |  trans  |  trans  |  trans  |         |  trans  |  trans  |  trans  |  trans  |  trans  |
 // -----------------------------------------------------------------------------------------------------------------------------------------------------------
         num_syb {
@@ -148,7 +148,7 @@ fn_tap: fn_tap {
 &kp GRAVE    &kp EXCL   &kp AT     &kp HASH   &kp DOLLAR  &kp PERCENT     &trans     &trans  &kp PLUS   &kp N7  &kp N8       &kp N9    &kp TILDE  &kp CARET
 &kp TILDE    &kp LT     &kp MINUS  &kp EQUAL  &kp GT      &kp UNDERSCORE  &kp MINUS  &kp N4  &kp N5     &kp N6  &kp AMPS     &kp PIPE
 &kp CARET    &kp LBRC   &kp LBKT   &kp RBKT   &kp RBRC    &kp DOLLAR      &trans     &trans  &kp ASTRK  &kp N1  &kp N2       &kp N3    &kp COLON  &kp SQT
-&trans       &kp COMMA  &kp LPAR   &kp RPAR   &kp SEMI    &none           &trans     &trans  &trans     &trans  &kp PERCENT  &kp N0    &kp COMMA  &kp DOT    &kp FSLH  &trans
+&trans       &kp COMMA  &kp LPAR   &kp RPAR   &kp SEMI    &none           &kp C_SLEEP &kp C_POWER &trans &trans &kp PERCENT  &kp N0    &kp COMMA  &kp DOT    &kp FSLH  &trans
 &trans       &trans     &trans     &trans     &trans      &trans          &trans     &trans  &trans     &trans
             >;
         };
@@ -157,7 +157,7 @@ fn_tap: fn_tap {
 // [ Layer 2 : Direction & Media ]
 // |  BOOT   | // 该按键在接收器上
 //
-// |   USB   |   BT0   |   BT1   |   BT2   |   BT3   |   BT4   |   PWR   |         |   SLP   |  none   |  none   |  none   |  none   |  none   | BT_CLR  |
+// |   USB   |   BT0   |   BT1   |   BT2   |   BT3   |   BT4   |  none   |         |  none   |  none   |  none   |  none   |  none   |  none   | BT_CLR  |
 // |  none   |  HOME   |    ↑    |   END   |  none   |  none   |                             |  none   |  none   |  none   |  none   |  none   |  none   |
 // |  none   |    ←    |    ↓    |    →    |  none   |  none   |  none   |         |  none   |  LCLK   |  RCLK   |  none   |  none   |  none   |  none   |
 // |  trans  |  PGUP   |   INS   |  PGDN   |  none   |  none   |TRNS|TRNS|         |TRNS|TRNS|  MCLK   |  S+C+A  |  none   |  none   |  none   |  none   |
@@ -167,7 +167,7 @@ fn_tap: fn_tap {
             display-name = "direct";
             bindings = <
 &bootloader
-&out OUT_USB  &bt_out0   &bt_out1    &bt_out2   &bt_out3  &bt_out4  &kp C_POWER  &kp C_SLEEP  &none        &none      &none  &none  &none  &bt BT_CLR
+&out OUT_USB  &bt_out0   &bt_out1    &bt_out2   &bt_out3  &bt_out4  &none        &none        &none        &none      &none  &none  &none  &bt BT_CLR
 &none         &kp HOME   &kp UP      &kp END    &none     &none     &none        &none        &none        &none      &none  &none
 &none         &kp LEFT   &kp DOWN    &kp RIGHT  &none     &none     &none        &none        &mkp LCLK    &mkp RCLK  &none  &none  &none  &none
 &trans        &kp PG_UP  &kp INSERT  &kp PG_DN  &none     &none     &trans       &trans       &trans       &trans      &mkp MCLK    &shift_contrl_alt &none  &none       &none  &none
