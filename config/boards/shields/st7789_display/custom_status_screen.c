@@ -15,13 +15,14 @@
 #include "widgets/configuration.h"
 #include "widgets/wpm.h"
 #include "widgets/modifier.h"
+#include "widgets/layer_status.h"
 #include <zmk/activity.h>
 #include <zmk/events/activity_state_changed.h>
 #include <zephyr/logging/log.h>
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 #define SPLASH_DURATION_MS 50
-#define SPLASH_FINAL_COUNT 15 // 约 2.5 秒（50ms × 50）
+#define SPLASH_FINAL_COUNT 50 // 约 2.5 秒（50ms × 50）
 
 static uint8_t splash_count = 0;
 static bool splash_finished = false;
@@ -36,7 +37,6 @@ void timer_splash(lv_timer_t *timer) {
 
     if (splash_count >= SPLASH_FINAL_COUNT) {
         LOG_INF("Splash finished → show menu");
-        print_background();
         initialize_battery_status();
         print_menu();
 
@@ -51,13 +51,27 @@ static int activity_listener_cb(const zmk_event_t *eh) {
     if (!event)
         return 0;
 
+    /* Do not let the initial ACTIVE event skip the 2.5 second boot splash. */
+    if (!splash_finished)
+        return 0;
+
     if (event->state == ZMK_ACTIVITY_ACTIVE) {
         LOG_INF("Keyboard active → show menu");
-        print_background();
         initialize_battery_status();
         print_menu();
     } else {
         LOG_INF("Keyboard idle → show splash");
+        // Stop every widget before showing the splash. Each widget redraws
+        // asynchronously from its own event listener (BLE/USB, battery, wpm,
+        // layer, ...). If they stay "running" while the splash is shown, an
+        // incoming event will paint a connection sign or battery value on top
+        // of the splash. Clearing the flags keeps the idle screen clean.
+        stop_wpm_status();
+        stop_modifier_status();
+        stop_output_status();
+        stop_battery_status();
+        stop_animation();
+        stop_layer_status();
         print_splash();
     }
 
