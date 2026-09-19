@@ -64,13 +64,13 @@ static struct k_work_q a320_workq;
 
 /* ========= 模块插座引脚（MOTION 中断线）=========
  *
- * 引脚号/端口号在 Kconfig 里，具体值写在 config/sofle_dongle_left.conf；
+ * 引脚号/端口号在 Kconfig 里，具体值写在 config/boards/arm/sofle_dongle/Kconfig.defconfig（左半段）；
  * 本文件不写死脚号。设备树预处理看不到 Kconfig 值，所以用 #if 把端口号翻成
  * 节点标签，翻不出来（-1 = 该侧还没定义）就编译失败。
  *
  * 触摸板目前只有左座数据（MODULAR_POINTER_ANALYSIS.md §4.1）：
  *   MOTION P0.05（和轨迹球的 UP 是同一根线）
- * I2C 那两根在 config/sofle_dongle_left.overlay 里。
+ * I2C 那两根在 lf.dtsi（板目录） 里。
  */
 
 #if !defined(CONFIG_BOARD_LF_SLAVER) && !defined(CONFIG_BOARD_LF_MASTER)
@@ -82,7 +82,7 @@ static struct k_work_q a320_workq;
 #elif CONFIG_A320_MOTION_GPIO_PORT == 1
 #define MOTION_GPIO_NODE DT_NODELABEL(gpio1)
 #else
-#error "CONFIG_A320_MOTION_GPIO_PORT 未定义（-1）或超出 0/1；见 config/sofle_dongle_left.conf"
+#error "CONFIG_A320_MOTION_GPIO_PORT 未定义（-1）或超出 0/1；见 config/boards/arm/sofle_dongle/Kconfig.defconfig（左半段）"
 #endif
 
 #define MOTION_GPIO_PIN CONFIG_A320_MOTION_GPIO_PIN

@@ -82,7 +82,7 @@ fn_tap: fn_tap {
     };
 
     macros {
-        #include "bt_force_macros.dtsi"
+        #include "dts/bt_force_macros.dtsi"
 
         shift_contrl_alt: shift_contrl_alt {
             compatible = "zmk,behavior-macro";
