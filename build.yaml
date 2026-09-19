@@ -3,20 +3,20 @@
 # 同一个 board 上挂多个 shield 时必须显式写，否则目标名会撞车。
 include:
   # 中枢：设备无关，一份通吃（见 MODULAR_POINTER_ANALYSIS.md §1.7）
-  - board: sofle_dongle
+  - board: dongle_master
     shield: st7789_display
     artifact-name: dongle
 
   # 左半：轨迹球 / 触摸板
-  - board: sofle_dongle_left
+  - board: lf_slaver
     shield: lpm_view;bbtrackball
     artifact-name: left_ball
-  - board: sofle_dongle_left
+  - board: lf_slaver
     shield: lpm_view;bbtrackpad
     artifact-name: left_pad
 
   # 右半：小红点
-  - board: sofle_dongle_right
+  - board: rt_slaver
     shield: lpm_view;trackpoint
     artifact-name: right_point
 
@@ -24,30 +24,31 @@ include:
   # 以下三个组合**故意编不过**，列在这里是为了让 `zmk_build all` 把
   # 「哪一侧缺引脚资料」明确报出来，而不是悄悄少编一个固件。
   # 报错来自驱动顶部的 #error（见 MODULAR_POINTER_ANALYSIS.md §4.4）。
-  # 资料补齐后往 config/sofle_dongle_<side>.conf 填引脚即可转正，
+  # 资料补齐后往 config/boards/arm/sofle_dongle/Kconfig.defconfig 里对应那一半
+  # 填引脚即可转正，
   # 这里的条目和 shield 名字都不用改。
   # ---------------------------------------------------------------
-  - board: sofle_dongle_left
+  - board: lf_slaver
     shield: lpm_view;trackpoint        # 缺：左座小红点引脚
     artifact-name: left_point
-  - board: sofle_dongle_right
+  - board: rt_slaver
     shield: lpm_view;bbtrackball       # 缺：右座轨迹球引脚
     artifact-name: right_ball
-  - board: sofle_dongle_right
+  - board: rt_slaver
     shield: lpm_view;bbtrackpad        # 缺：右座触摸板引脚
     artifact-name: right_pad
 
   # settings_reset 恢复固件，只给能编出来的四个组合挂变体
   # （上面那三个缺引脚的还没定，装机也不会用到）
-  - board: sofle_dongle
+  - board: dongle_master
     shield: st7789_display;settings_reset
     artifact-name: dongle_reset
-  - board: sofle_dongle_left
+  - board: lf_slaver
     shield: lpm_view;bbtrackball;settings_reset
     artifact-name: left_ball_reset
-  - board: sofle_dongle_left
+  - board: lf_slaver
     shield: lpm_view;bbtrackpad;settings_reset
     artifact-name: left_pad_reset
-  - board: sofle_dongle_right
+  - board: rt_slaver
     shield: lpm_view;trackpoint;settings_reset
     artifact-name: right_point_reset

@@ -1,0 +1,11 @@
+/*
+ * 左半 · 外设：接在 dongle（或对侧主控）下面。
+ *
+ * Copyright (c) 2025 ZitaoTech
+ * SPDX-License-Identifier: MIT
+ *
+ * 硬件与右侧角色无关，都在 lf.dtsi；外设侧没有角色专属节点（本半的模块
+ * 走 shield 里声明的 split 代理往外发），所以这份文件只有 include。
+ */
+
+#include "lf.dtsi"

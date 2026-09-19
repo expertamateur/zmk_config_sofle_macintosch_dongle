@@ -1,9 +1,14 @@
 /*
-*
-* Copyright (c) 2025 ZitaoTech
-* SPDX-License-Identifier: MIT
-*
-*/
+ * 右半（右手）的硬件：kscan 矩阵、EXT_POWER、编码器、屏幕 SPI、模块插座引脚。
+ *
+ * Copyright (c) 2025 ZitaoTech
+ * SPDX-License-Identifier: MIT
+ *
+ * 被 rt_slaver.dts / rt_master.dts 包含 —— 两侧角色（外设/中央）的硬件完全相同，
+ * 差别只在角色：外设侧不用加东西，中央侧由 rt_master.dts 补「对侧模块走 split
+ * 入站」的节点。67 格变换表、编码器、传感器、USB 串口、flash 分区在
+ * sofle_dongle.dtsi 里（五块板共用）。
+ */
 
 #include "sofle_dongle.dtsi"
 
@@ -203,4 +208,51 @@ lpm_view_spi: &spi2 {
         };
     };
 
+};
+
+/* =========================================================================
+ * 模块插座（右座）的引脚：插座上的哪根线接到右板 MCU 的哪只脚。
+ *
+ * 右座目前只有小红点的资料（MODULAR_POINTER_ANALYSIS.md §4.2）：
+ *   小红点 MOTION  P0.14  （引脚号在 Kconfig.defconfig 里）
+ *   小红点 I2C SDA P0.07
+ *   小红点 I2C SCL P1.08
+ *   模块主 LED     P0.04
+ *
+ * 右座的轨迹球/触摸板引脚源码里没有，所以那边保持「未定义」，真去编
+ * side=right + ball/pad 的组合会在 C 里 #error 拒绝（见各驱动开头）。
+ *
+ * 本段同时补上了 shield（bbtrackball / trackpoint）里 &pwm1 引用的
+ * pwm1_default / pwm1_sleep —— 否则右板上那两个节点是悬空的。
+ * ========================================================================= */
+&pinctrl {
+    /* 模块主 LED（小红点那侧没有第二颗 LED，所以只有 pwm1） */
+    pwm1_default: pwm1_default {
+        group1 {
+            psels = <NRF_PSEL(PWM_OUT0, 0, 4)>;
+        };
+    };
+
+    pwm1_sleep: pwm1_sleep {
+        group1 {
+            psels = <NRF_PSEL(PWM_OUT0, 0, 4)>;
+            bias-pull-down;
+        };
+    };
+
+    /* 模块插座上的 I2C，小红点用 */
+    i2c0_default: i2c0_default {
+        group1 {
+            psels = <NRF_PSEL(TWIM_SDA, 0, 7)>,
+                    <NRF_PSEL(TWIM_SCL, 1, 8)>;
+        };
+    };
+
+    i2c0_sleep: i2c0_sleep {
+        group1 {
+            psels = <NRF_PSEL(TWIM_SDA, 0, 7)>,
+                    <NRF_PSEL(TWIM_SCL, 1, 8)>;
+            low-power-enable;
+        };
+    };
 };

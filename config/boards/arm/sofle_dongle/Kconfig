@@ -1,11 +1,17 @@
 # Copyright (c) 2025 ZitaoTech
 # SPDX-License-Identifier: MIT
 
-config BOARD_SOFLE_DONGLE
+config BOARD_DONGLE_MASTER
     bool
 
-config BOARD_SOFLE_DONGLE_LEFT
+config BOARD_LF_SLAVER
     bool
 
-config BOARD_SOFLE_DONGLE_RIGHT
+config BOARD_LF_MASTER
+    bool
+
+config BOARD_RT_SLAVER
+    bool
+
+config BOARD_RT_MASTER
     bool

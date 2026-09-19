@@ -1,9 +1,14 @@
 /*
-*
-* Copyright (c) 2025 ZitaoTech
-* SPDX-License-Identifier: MIT
-*
-*/
+ * 左半（左手）的硬件：kscan 矩阵、EXT_POWER、编码器、屏幕 SPI、模块插座引脚。
+ *
+ * Copyright (c) 2025 ZitaoTech
+ * SPDX-License-Identifier: MIT
+ *
+ * 被 lf_slaver.dts / lf_master.dts 包含 —— 两侧角色（外设/中央）的硬件完全相同，
+ * 差别只在角色：外设侧不用加东西，中央侧由 lf_master.dts 补「对侧模块走 split
+ * 入站」的节点。67 格变换表、编码器、传感器、USB 串口、flash 分区在
+ * sofle_dongle.dtsi 里（五块板共用）。
+ */
 
 #include "sofle_dongle.dtsi"
 
@@ -195,3 +200,72 @@ lpm_view_spi: &spi2 {
     };
 };
 
+/* =========================================================================
+ * 模块插座（左座）的引脚：插座上的哪根线接到左板 MCU 的哪只脚。
+ *
+ * 属于板子、不属于模块（见 MODULAR_POINTER_ANALYSIS.md §4.1）：
+ *   轨迹球 UP   P0.05  =  触摸板 MOTION
+ *   轨迹球 LEFT P0.12  =  触摸板 I2C SCL
+ *   轨迹球 DOWN P1.09  =  触摸板 I2C SDA
+ *   轨迹球 RIGHT P0.27 =  （触摸板不用）
+ *
+ * shield 那边只负责把外设 enable 起来（&pwm1 / &pwm3 / &i2c0），引脚本身在
+ * 这里单点定义，换模块不用动。引脚号（Kconfig 那半）在 Kconfig.defconfig 里，
+ * 按「半」给默认值：同侧的 master/slaver 硬件相同，共享一份。
+ * ========================================================================= */
+&pinctrl {
+    /* 模块主 LED：轨迹球和触摸板共用同一颗 */
+    pwm1_default: pwm1_default {
+        group1 {
+            psels = <NRF_PSEL(PWM_OUT0, 0, 7)>;
+        };
+    };
+
+    pwm1_sleep: pwm1_sleep {
+        group1 {
+            psels = <NRF_PSEL(PWM_OUT0, 0, 7)>;
+            bias-pull-down;
+        };
+    };
+
+    /* 触摸板自己加的那颗 LED —— 只有左板引出来了。enable 也一并留在这边
+     * 而不是 shield 里（bbtrackpad.overlay 引用了 pwm3_default，放 shield
+     * 会让右板在设备树阶段就炸，见那边的注释） */
+    pwm3_default: pwm3_default {
+        group1 {
+            psels = <NRF_PSEL(PWM_OUT0, 0, 16)>;
+        };
+    };
+
+    pwm3_sleep: pwm3_sleep {
+        group1 {
+            psels = <NRF_PSEL(PWM_OUT0, 0, 16)>;
+            bias-pull-down;
+        };
+    };
+
+    /* 模块插座上的 I2C，只有触摸板会用（轨迹球拿这两根当方向线） */
+    i2c0_default: i2c0_default {
+        group1 {
+            psels = <NRF_PSEL(TWIM_SDA, 1, 9)>,
+                    <NRF_PSEL(TWIM_SCL, 0, 12)>;
+        };
+    };
+
+    i2c0_sleep: i2c0_sleep {
+        group1 {
+            psels = <NRF_PSEL(TWIM_SDA, 1, 9)>,
+                    <NRF_PSEL(TWIM_SCL, 0, 12)>;
+            low-power-enable;
+        };
+    };
+};
+
+/* 触摸板副 LED 的 enable：插触摸板才有消费者，插轨迹球时这里只是留一个
+ * 没人用的 PWM 设备（开销可忽略）。 */
+&pwm3 {
+    status = "okay";
+    pinctrl-0 = <&pwm3_default>;
+    pinctrl-1 = <&pwm3_sleep>;
+    pinctrl-names = "default", "sleep";
+};

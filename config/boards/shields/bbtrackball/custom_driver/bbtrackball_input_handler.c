@@ -58,7 +58,7 @@ static struct k_work_q bbtrackball_work_q;
  * config/sofle_dongle_right.conf，再把下面那道 #error 换成 #elif。
  */
 
-#if !defined(CONFIG_BOARD_SOFLE_DONGLE_LEFT)
+#if !defined(CONFIG_BOARD_LF_SLAVER) && !defined(CONFIG_BOARD_LF_MASTER)
 #error "bbtrackball 目前只有左座引脚定义（见 MODULAR_POINTER_ANALYSIS.md §4.1）；右座引脚源码里不存在，拒绝编出一份接不上的固件。"
 #endif
 

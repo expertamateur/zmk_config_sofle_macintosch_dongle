@@ -85,7 +85,7 @@ static uint32_t last_activity_time;
  * 小红点只有右座数据（MODULAR_POINTER_ANALYSIS.md §4.2）：MOTION P0.14。
  * I2C 那两根在 config/sofle_dongle_right.overlay 里。
  */
-#if !defined(CONFIG_BOARD_SOFLE_DONGLE_RIGHT)
+#if !defined(CONFIG_BOARD_RT_SLAVER) && !defined(CONFIG_BOARD_RT_MASTER)
 #error "trackpoint 目前只有右座引脚定义（见 MODULAR_POINTER_ANALYSIS.md §4.2）；左座引脚源码里不存在，拒绝编出一份接不上的固件。"
 #endif
 

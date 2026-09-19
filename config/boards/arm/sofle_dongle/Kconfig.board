@@ -1,16 +1,30 @@
 # Copyright (c) 2025 ZitaoTech
 # SPDX-License-Identifier: MIT
+#
+# 五块板 = 「半别 × 角色」：
+#   dongle_master  独立的 dongle，当中央（有 dongle 的那套接线）
+#   lf_/rt_slaver  左/右半当外设（挂在 dongle 或对侧主控下面）
+#   lf_/rt_master  左/右半当主控（没有 dongle 时自己连主机）
+# 角色带来的差异见 Kconfig.defconfig，硬件差异见 lf.dtsi / rt.dtsi。
 
-config BOARD_SOFLE_DONGLE
-    bool "sofle dongle"
+config BOARD_DONGLE_MASTER
+    bool "sofle dongle (dongle, central)"
     depends on SOC_NRF52840_QIAA
 
-config BOARD_SOFLE_DONGLE_LEFT
-    bool "sofle dongle left"
+config BOARD_LF_SLAVER
+    bool "sofle dongle left half (peripheral)"
     depends on SOC_NRF52840_QIAA
 
-config BOARD_SOFLE_DONGLE_RIGHT
-    bool "sofle dongle right"
+config BOARD_LF_MASTER
+    bool "sofle dongle left half (central, no dongle)"
+    depends on SOC_NRF52840_QIAA
+
+config BOARD_RT_SLAVER
+    bool "sofle dongle right half (peripheral)"
+    depends on SOC_NRF52840_QIAA
+
+config BOARD_RT_MASTER
+    bool "sofle dongle right half (central, no dongle)"
     depends on SOC_NRF52840_QIAA
 
 menu "A320 Trackpad Setting"

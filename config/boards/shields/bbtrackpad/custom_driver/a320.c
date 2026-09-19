@@ -73,7 +73,7 @@ static struct k_work_q a320_workq;
  * I2C 那两根在 config/sofle_dongle_left.overlay 里。
  */
 
-#if !defined(CONFIG_BOARD_SOFLE_DONGLE_LEFT)
+#if !defined(CONFIG_BOARD_LF_SLAVER) && !defined(CONFIG_BOARD_LF_MASTER)
 #error "bbtrackpad 目前只有左座引脚定义（见 MODULAR_POINTER_ANALYSIS.md §4.1）；右座引脚源码里不存在，拒绝编出一份接不上的固件。"
 #endif
 

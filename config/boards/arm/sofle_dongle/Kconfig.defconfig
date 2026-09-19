@@ -3,7 +3,12 @@
 # SPDX-License-Identifier: MIT
 #
 
-if BOARD_SOFLE_DONGLE
+# =========================================================
+# 中央（主控）：dongle，或没有 dongle 时当主控的那半。
+# 屏幕显示什么由 lpm_view 按这个角色切（status.c 显示连了哪些设备/电量/层，
+# 见 lpm_view/CMakeLists.txt），跟官方无 dongle 仓库一致。
+# =========================================================
+if BOARD_DONGLE_MASTER || BOARD_LF_MASTER || BOARD_RT_MASTER
 
 config ZMK_KEYBOARD_NAME
     default "SOFLE_DONGLE"
@@ -11,10 +16,12 @@ config ZMK_KEYBOARD_NAME
 config ZMK_SPLIT_ROLE_CENTRAL
     default y
 
-endif # BOARD_SOFLE_DONGLE
+endif # 中央
 
-
-if BOARD_SOFLE_DONGLE || BOARD_SOFLE_DONGLE_LEFT || BOARD_SOFLE_DONGLE_RIGHT
+# =========================================================
+# 五块板共有
+# =========================================================
+if BOARD_DONGLE_MASTER || BOARD_LF_SLAVER || BOARD_LF_MASTER || BOARD_RT_SLAVER || BOARD_RT_MASTER
 
 if ZMK_BACKLIGHT
 
@@ -38,4 +45,77 @@ config ZMK_SPLIT_PERIPHERAL_HID_INDICATORS
 config BT_CTLR
     default BT
 
-endif # BOARD_SOFLE_DONGLE || BOARD_SOFLE_DONGLE_LEFT || BOARD_SOFLE_DONGLE_RIGHT
+endif # 五块板
+
+# =========================================================
+# 左右半「模块插座」引脚（Kconfig 那一半）
+# =========================================================
+#
+# 「插座上的哪根线接到 MCU 的哪只脚」是板子焊死的，插的是轨迹球/触摸板/小红点
+# 由 shield 决定（enable 在 shield 的 overlay 里），所以引脚号按「半」给默认值：
+# 同侧的 master / slaver 硬件完全相同，共享一份。设备树那一半（pinctrl 的 psels）
+# 在 lf.dtsi / rt.dtsi 里。引脚表见 MODULAR_POINTER_ANALYSIS.md §4。
+#
+# 这里是 Kconfig 默认值，不是强制值：想改可以在自己的 .conf 里覆盖
+# （Kconfig 片段优先级高于默认值，见 CLAUDE.md 那套「按板名/目录名合并 conf」）。
+# 缺资料的那几个座子保持 shield 里的默认值 -1，编出来的固件会被驱动 #error
+# 拒绝（见 MODULAR_POINTER_ANALYSIS.md §4.4）。
+
+if BOARD_LF_SLAVER || BOARD_LF_MASTER
+
+# 左座（MODULAR_POINTER_ANALYSIS.md §4.1）
+#
+# 轨迹球：四根方向线
+#   UP P0.05 · LEFT P0.12 · DOWN P1.09 · RIGHT P0.27
+config BBTRACKBALL_UP_GPIO_PORT
+    default 0
+
+config BBTRACKBALL_UP_GPIO_PIN
+    default 5
+
+config BBTRACKBALL_LEFT_GPIO_PORT
+    default 0
+
+config BBTRACKBALL_LEFT_GPIO_PIN
+    default 12
+
+# 四根里只有 DOWN 在 gpio1，其余三根在 gpio0
+config BBTRACKBALL_DOWN_GPIO_PORT
+    default 1
+
+config BBTRACKBALL_DOWN_GPIO_PIN
+    default 9
+
+config BBTRACKBALL_RIGHT_GPIO_PORT
+    default 0
+
+config BBTRACKBALL_RIGHT_GPIO_PIN
+    default 27
+
+# 触摸板：MOTION 中断线（和轨迹球的 UP 是同一根线）
+config A320_MOTION_GPIO_PORT
+    default 0
+
+config A320_MOTION_GPIO_PIN
+    default 5
+
+# 左座的小红点引脚源码里没有 → 保持默认 -1，
+# 编 lf_* + trackpoint 时驱动会 #error 拒绝。
+
+endif # 左半
+
+if BOARD_RT_SLAVER || BOARD_RT_MASTER
+
+# 右座（MODULAR_POINTER_ANALYSIS.md §4.2）
+#
+# 小红点：MOTION 中断线 P0.14
+config TRACKPOINT_MOTION_GPIO_PORT
+    default 0
+
+config TRACKPOINT_MOTION_GPIO_PIN
+    default 14
+
+# 右座的轨迹球/触摸板引脚源码里没有 → 保持默认 -1，
+# 编 rt_* + ball/pad 时驱动会 #error 拒绝。
+
+endif # 右半

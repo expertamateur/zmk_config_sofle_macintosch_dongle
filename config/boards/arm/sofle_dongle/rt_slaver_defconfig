@@ -3,16 +3,18 @@
 
 CONFIG_SOC_SERIES_NRF52X=y
 CONFIG_SOC_NRF52840_QIAA=y
-CONFIG_BOARD_SOFLE_DONGLE=y
+CONFIG_BOARD_RT_SLAVER=y
 
 
 # Enable MPU
 CONFIG_ARM_MPU=y
 
-CONFIG_PINCTRL=y
+
+
 
 # enable GPIO
 CONFIG_GPIO=y
+CONFIG_PINCTRL=y
 
 # Build Configuration
 CONFIG_USE_DT_CODE_PARTITION=y
@@ -30,19 +32,15 @@ CONFIG_FLASH_MAP=y
 CONFIG_BT_CTLR_TX_PWR_PLUS_8=y
 
 # Sleep Setting
-CONFIG_ZMK_SLEEP=n
+CONFIG_ZMK_SLEEP=y
+CONFIG_ZMK_IDLE_SLEEP_TIMEOUT=1800000
 CONFIG_ZMK_EXT_POWER=y
 # timeout for backlight for keyboard in miliseconds
-CONFIG_ZMK_IDLE_TIMEOUT=600000                         
+CONFIG_ZMK_IDLE_TIMEOUT=5000                             
 
-
-# 5 profiles (n+2)
-CONFIG_BT_MAX_CONN=7
-CONFIG_BT_MAX_PAIRED=7
-
-# Keyboard backlight Setting
+ # Keyboard backlight Setting
 # enable keyboard backlight
-CONFIG_ZMK_BACKLIGHT=y                           
+CONFIG_ZMK_BACKLIGHT=y                            
 # set the brightness the keyboard backlight when powered on in 1-100
 CONFIG_ZMK_BACKLIGHT_BRT_START=40                     
 # set the brightness step for each change of backlight brightness
@@ -50,18 +48,14 @@ CONFIG_ZMK_BACKLIGHT_BRT_STEP=10
 # enable keyboard backlight on when powered on
 CONFIG_ZMK_BACKLIGHT_ON_START=y                       
 # enable automatic turn off when no keypress detected
-CONFIG_ZMK_BACKLIGHT_AUTO_OFF_IDLE=y                  
+CONFIG_ZMK_BACKLIGHT_AUTO_OFF_IDLE=y    
 
 # HID indicator configuration
 CONFIG_ZMK_HID_INDICATORS=y
 
-                
-# Enable Mouse
+# Enable pointing device driver
 CONFIG_ZMK_POINTING=y
-CONFIG_INPUT=y
 CONFIG_ZMK_MOUSE=y
-CONFIG_ZMK_POINTING=y
-
 # Debuncing Setting 
 CONFIG_ZMK_KSCAN_DEBOUNCE_PRESS_MS=10
 CONFIG_ZMK_KSCAN_DEBOUNCE_RELEASE_MS=10
@@ -73,10 +67,6 @@ CONFIG_ZMK_BLE=y
 # Milliseconds to wait after a setting change before writing it to flash memory
 CONFIG_ZMK_SETTINGS_SAVE_DEBOUNCE=1000
 
-# Enable EC11 Setting
-CONFIG_EC11=y
-CONFIG_EC11_TRIGGER_GLOBAL_THREAD=y
-
 # ZMK Studio
 CONFIG_ZMK_STUDIO=y
 CONFIG_ZMK_STUDIO_LOCKING=n
@@ -84,10 +74,28 @@ CONFIG_ZMK_STUDIO_LOCK_ON_DISCONNECT=n
 
 # Log via USB or Segger RTT
 CONFIG_ZMK_USB_LOGGING=n
-CONFIG_LOG_PROCESS_THREAD_STARTUP_DELAY_MS=4000
+# CONFIG_LOG_PROCESS_THREAD_STARTUP_DELAY_MS=4000
+
+# Encoder EC11
+CONFIG_EC11=y
+CONFIG_EC11_TRIGGER_GLOBAL_THREAD=y
+   
+# I2C Trackpad
+CONFIG_I2C=y
+CONFIG_SENSOR=y
+CONFIG_I2C_NRFX=y
+CONFIG_LOG=y
+# CONFIG_SENSOR_LOG_LEVEL_DBG=n
+# CONFIG_INPUT_A320=y
+# CONFIG_ZMK_A320_INPUT_HANDLER=y
+
+# Enable Mouse
+CONFIG_INPUT=y
+CONFIG_ZMK_MOUSE=y
+CONFIG_ZMK_POINTING=y
 
 
+# RGB backlight setting for Backlight turn on/off of keyboard
 CONFIG_ZMK_RGB_UNDERGLOW=y
 CONFIG_ZMK_RGB_UNDERGLOW_EXT_POWER=n
 CONFIG_WS2812_STRIP=y
-

@@ -1,0 +1,44 @@
+/*
+ * 左半 · 主控：没有 dongle，左半自己连主机。
+ *
+ * Copyright (c) 2025 ZitaoTech
+ * SPDX-License-Identifier: MIT
+ *
+ * 硬件在 lf.dtsi；本文件只加「中央侧」多出来的东西。
+ *
+ * 本半的模块（轨迹球/触摸板）不走 split：listener 直接接板载设备，由
+ * bbtrackball / bbtrackpad 的 boards/lf_master.overlay 改写（那里同时把同名
+ * 代理关掉——中央侧投递是「按 reg 找第一个匹配的代理就返回」
+ * （src/pointing/input_split.c:32-33），只认 status=okay 的代理（:27）；
+ * 留一个没接 listener 的 reg=0 代理，会被对侧上报的事件撞上，白吃掉数据）。
+ *
+ * 对侧（右半）的小红点走 split 入站：代理 + listener 都在中央侧声明，写法同
+ * dongle_master.dts。中央侧忽略代理的 device 属性（那个 BUILD_ASSERT 只在外设
+ * 侧编译），所以这里不写 device —— <&trackpoint> 在这块板上也不存在。
+ */
+
+#include "lf.dtsi"
+
+/ {
+    split_inputs {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        trackpoint_split: trackpoint_split@0 {
+            compatible = "zmk,input-split";
+            reg = <0>;
+        };
+    };
+
+    trackpoint_listener: trackpoint_listener {
+        compatible = "zmk,input-listener";
+        status = "okay";
+        device = <&trackpoint_split>;
+    };
+};
+
+/*
+ * 这里不挂 input-processors：本分支的指针语义是「指针设备跟随层」——模式由
+ * 驱动自己根据按住的键位决定（默认滚轮，按住 mouse 层拇指键切鼠标移动），
+ * 键位见各 shield 的 Kconfig，不需要 listener 这边做任何加工。
+ */
