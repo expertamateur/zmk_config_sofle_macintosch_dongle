@@ -1,0 +1,27 @@
+/*
+ * 左半当主控（没有 dongle）时：板载轨迹球直连 listener，不走 split。
+ *
+ * Copyright (c) 2025 ZitaoTech
+ * SPDX-License-Identifier: MIT
+ *
+ * 1) listener 改指向板载设备：中央侧的 listener 本来就是「听哪个设备由 device
+ *    属性决定」，主控上这个设备就在本板，不需要绕 split。
+ * 2) 同时把同名 split 代理关掉：中央侧投递是「按 reg 找第一个 status=okay 的
+ *    代理就返回」（src/pointing/input_split.c:27,32-33）。这里 reg 都是 0，
+ *    代理留着会抢走对侧上报的事件，而它这会儿已经没有 listener 了 —— 数据
+ *    直接消失（表现为对侧的小红点不动）。
+ *
+ * 生效机制是 Zephyr 原生的「shield 按板 overlay」
+ * （zephyr/cmake/modules/shields.cmake:105-111）：这份文件紧跟
+ * bbtrackball.overlay 之后合并，所以一定盖得住 shield 里的默认值，
+ * 板级 dts 也覆盖不到它（顺序在它前面）。
+ */
+
+&bbtrackball_listener {
+    status = "okay";
+    device = <&bbtrackball>;
+};
+
+&bbtrackball_split {
+    status = "disabled";
+};

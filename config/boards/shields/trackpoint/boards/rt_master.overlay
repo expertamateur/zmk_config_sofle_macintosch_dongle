@@ -1,0 +1,20 @@
+/*
+ * 右半当主控（没有 dongle）时：板载小红点直连 listener，不走 split。
+ *
+ * Copyright (c) 2025 ZitaoTech
+ * SPDX-License-Identifier: MIT
+ *
+ * 理由与写法和 bbtrackball/boards/lf_master.overlay 完全一致：listener 改指
+ * 板载设备，并把同名 split 代理关掉，否则它会用同一个 reg=0 抢走对侧上报的
+ * 事件（中央侧按 reg 命中即返回，见 src/pointing/input_split.c:27,32-33）。
+ * 对侧的轨迹球/触摸板代理由板级 dts（rt_master.dts）声明。
+ */
+
+&trackpoint_listener {
+    status = "okay";
+    device = <&trackpoint>;
+};
+
+&trackpoint_split {
+    status = "disabled";
+};
