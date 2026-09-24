@@ -119,11 +119,11 @@ fn_tap: fn_tap {
             display-name = "default";
             bindings = <
 &bootloader
-&kp ESC          &td_f1_f11  &td_f2_f12   &kp F3               &kp F4         &kp F5           &kp C_MUTE       &rgb_ug RGB_TOG  &kp F6      &kp F7         &kp F8  &kp F9    &kp F10    &kp BACKSPACE
-&kp TAB          &kp Q       &kp W        &kp E                &kp R          &kp T            &kp Y            &kp U            &kp I       &kp O          &kp P   &kp BSLH
-&fn_tap 2 ENTER  &kp A       &kp S        &kp D                &kp F          &kp G            &mkp MCLK        &mkp LCLK        &kp H       &kp J          &kp K   &kp L     &kp SEMI   &kp APOS
-&kp LSHFT        &kp Z       &kp X        &kp C                &kp V          &kp B            &mkp LCLK        &mkp RCLK        &bl BL_DEC  &bl BL_INC     &kp N   &kp M     &kp COMMA  &kp DOT        &kp FSLH  &kp RIGHT_SHIFT
-&td_lf_win_ctrl     &kp LALT    &ctrl_dance  &fn_tap 3 BACKSPACE  &fn_tap 4 DEL  &fn_tap 4 ENTER  &fn_tap 1 SPACE  &ctrl_dance      &kp LALT    &td_rt_win_ctrl
+&kp ESC         &td_f1_f11  &td_f2_f12      &kp F3          &kp F4          &kp F5              &kp C_MUTE                        &rgb_ug RGB_TOG       &kp F6          &kp F7            &kp F8    &kp F9          &kp F10   &kp BACKSPACE
+&kp TAB         &kp Q       &kp W           &kp E           &kp R           &kp T                                                                       &kp Y           &kp U             &kp I     &kp O           &kp P     &kp BSLH
+&fn_tap 2 ENTER &kp A       &kp S           &kp D           &kp F           &kp G               &mkp MCLK                         &mkp LCLK             &kp H           &kp J             &kp K     &kp L           &kp SEMI  &kp APOS
+&kp LSHFT       &kp Z       &kp X           &kp C           &kp V           &kp B               &mkp LCLK   &mkp RCLK             &bl BL_DEC &bl BL_INC &kp N           &kp M             &kp COMMA &kp DOT         &kp FSLH  &kp RIGHT_SHIFT
+                            &td_lf_win_ctrl &kp LALT        &ctrl_dance     &fn_tap 3 BACKSPACE &fn_tap 4 DEL                     &fn_tap 4 ENTER       &fn_tap 1 SPACE &ctrl_dance       &kp LALT  &td_rt_win_ctrl
             >;
 
             sensor-bindings =
@@ -145,11 +145,11 @@ fn_tap: fn_tap {
             display-name = "num_syb";
             bindings = <
 &bootloader
-&kp GRAVE    &kp EXCL   &kp AT     &kp HASH   &kp DOLLAR  &kp PERCENT     &trans     &trans  &kp PLUS   &kp N7  &kp N8       &kp N9    &kp TILDE  &kp CARET
-&kp TILDE    &kp LT     &kp MINUS  &kp EQUAL  &kp GT      &kp UNDERSCORE  &kp MINUS  &kp N4  &kp N5     &kp N6  &kp AMPS     &kp PIPE
-&kp CARET    &kp LBRC   &kp LBKT   &kp RBKT   &kp RBRC    &kp DOLLAR      &trans     &trans  &kp ASTRK  &kp N1  &kp N2       &kp N3    &kp COLON  &kp SQT
-&trans       &kp COMMA  &kp LPAR   &kp RPAR   &kp SEMI    &none           &kp C_SLEEP &kp C_POWER &trans &trans &kp PERCENT  &kp N0    &kp COMMA  &kp DOT    &kp FSLH  &trans
-&trans       &trans     &trans     &trans     &trans      &trans          &trans     &trans  &trans     &trans
+&kp GRAVE       &kp EXCL    &kp AT          &kp HASH        &kp DOLLAR      &kp PERCENT         &trans                            &trans                &kp PLUS        &kp N7            &kp N8    &kp N9          &kp TILDE &kp CARET
+&kp TILDE       &kp LT      &kp MINUS       &kp EQUAL       &kp GT          &kp UNDERSCORE                                                              &kp MINUS       &kp N4            &kp N5    &kp N6          &kp AMPS  &kp PIPE
+&kp CARET       &kp LBRC    &kp LBKT        &kp RBKT        &kp RBRC        &kp DOLLAR          &trans                            &trans                &kp ASTRK       &kp N1            &kp N2    &kp N3          &kp COLON &kp SQT
+&trans          &kp COMMA   &kp LPAR        &kp RPAR        &kp SEMI        &none               &kp C_SLEEP &kp C_POWER           &trans     &trans     &kp PERCENT     &kp N0            &kp COMMA &kp DOT         &kp FSLH  &trans
+                            &trans          &trans          &trans          &trans              &trans                            &trans                &trans          &trans            &trans    &trans
             >;
         };
 
@@ -167,11 +167,11 @@ fn_tap: fn_tap {
             display-name = "direct";
             bindings = <
 &bootloader
-&out OUT_USB  &bt_out0   &bt_out1    &bt_out2   &bt_out3  &bt_out4  &none        &none        &none        &none      &none  &none  &none  &bt BT_CLR
-&none         &kp HOME   &kp UP      &kp END    &none     &none     &none        &none        &none        &none      &none  &none
-&none         &kp LEFT   &kp DOWN    &kp RIGHT  &none     &none     &none        &none        &mkp LCLK    &mkp RCLK  &none  &none  &none  &none
-&trans        &kp PG_UP  &kp INSERT  &kp PG_DN  &none     &none     &trans       &trans       &trans       &trans      &mkp MCLK    &shift_contrl_alt &none  &none       &none  &none
-&trans        &trans     &trans      &trans     &trans    &trans    &trans       &trans       &trans       &trans
+&out OUT_USB    &bt_out0    &bt_out1        &bt_out2        &bt_out3        &bt_out4            &none                             &none                 &none           &none             &none     &none           &none     &bt BT_CLR
+&none           &kp HOME    &kp UP          &kp END         &none           &none                                                                       &none           &none             &none     &none           &none     &none
+&none           &kp LEFT    &kp DOWN        &kp RIGHT       &none           &none               &none                             &none                 &mkp LCLK       &mkp RCLK         &none     &none           &none     &none
+&trans          &kp PG_UP   &kp INSERT      &kp PG_DN       &none           &none               &trans      &trans                &trans     &trans     &mkp MCLK       &shift_contrl_alt &none     &none           &none     &none
+                            &trans          &trans          &trans          &trans              &trans                            &trans                &trans          &trans            &trans    &trans
             >;
         };
 
@@ -189,11 +189,11 @@ fn_tap: fn_tap {
             display-name = "func";
             bindings = <
 &bootloader
-&kp F12      &kp F1   &kp F2          &kp F3          &kp F4          &kp F5             &none    &none    &kp F6     &kp F7     &kp F8   &kp F9   &kp F10  &kp F11
-&kp F12      &kp F11  &kp F12         &kp F13         &kp F14         &kp F15            &kp F16  &kp F17  &kp F18    &kp F19    &kp F20  &kp F21
-&kp CAPS     &kp F21  &kp F22         &kp F23         &kp F24         &kp PRINTSCREEN    &none    &none    &mkp LCLK  &mkp RCLK  &none    &none    &none    &kp KP_NLCK
-&trans       &none    &kp LS(DELETE)  &kp LC(INSERT)  &kp LS(INSERT)  &shift_contrl_alt  &trans   &trans   &trans     &trans      &mkp MCLK  &shift_contrl_alt    &none    &none       &none  &trans
-&trans       &trans   &trans          &trans          &trans          &trans             &trans   &trans   &trans     &trans
+&kp F12         &kp F1      &kp F2          &kp F3          &kp F4          &kp F5              &none                             &none                 &kp F6          &kp F7            &kp F8    &kp F9          &kp F10   &kp F11
+&kp F12         &kp F11     &kp F12         &kp F13         &kp F14         &kp F15                                                                     &kp F16         &kp F17           &kp F18   &kp F19         &kp F20   &kp F21
+&kp CAPS        &kp F21     &kp F22         &kp F23         &kp F24         &kp PRINTSCREEN     &none                             &none                 &mkp LCLK       &mkp RCLK         &none     &none           &none     &kp KP_NLCK
+&trans          &none       &kp LS(DELETE)  &kp LC(INSERT)  &kp LS(INSERT)  &shift_contrl_alt   &trans      &trans                &trans     &trans     &mkp MCLK       &shift_contrl_alt &none     &none           &none     &trans
+                            &trans          &trans          &trans          &trans              &trans                            &trans                &trans          &trans            &trans    &trans
             >;
         };
 
@@ -212,11 +212,11 @@ fn_tap: fn_tap {
             display-name = "mouse";
             bindings = <
 &bootloader
-&trans       &trans          &trans          &trans           &trans     &trans     &trans     &trans  &trans     &trans     &trans  &trans  &trans  &trans
-&trans       &trans          &trans          &trans           &trans     &trans     &trans     &trans  &trans     &trans     &trans  &trans
-&trans       &trans          &trans          &trans           &mkp RCLK  &mkp LCLK  &trans     &trans  &mkp LCLK  &mkp RCLK  &trans  &trans  &trans  &trans
-&trans       &trans          &trans          &trans           &trans     &trans     &trans     &trans  &trans     &trans    &mkp MCLK  &shift_contrl_alt     &trans  &trans  &trans  &trans
-&trans       &trans          &trans          &trans           &trans     &trans     &kp SPACE  &trans  &trans     &trans
+&trans          &trans      &trans          &trans          &trans          &trans              &trans                            &trans                &trans          &trans            &trans    &trans          &trans    &trans
+&trans          &trans      &trans          &trans          &trans          &trans                                                                      &trans          &trans            &trans    &trans          &trans    &trans
+&trans          &trans      &trans          &trans          &mkp RCLK       &mkp LCLK           &trans                            &trans                &mkp LCLK       &mkp RCLK         &trans    &trans          &trans    &trans
+&trans          &trans      &trans          &trans          &trans          &trans              &trans      &trans                &trans     &trans     &mkp MCLK       &shift_contrl_alt &trans    &trans          &trans    &trans
+                            &trans          &trans          &trans          &trans              &trans                            &trans                &kp SPACE       &trans            &trans    &trans
             >;
         };
     };

@@ -1,0 +1,322 @@
+#!/usr/bin/env python3
+"""keymap_align - 把 keymap 各层 `bindings = <...>` 摆成注释里那张键盘图的形状.
+
+布局从 keymap 自己的「矩阵索引 / Matrix Index」注释块读出来：那块注释就是一张格子图，
+一格 = 一个键位，空格子 = 没有键，`| 47 | 48 |` 这种窄格 = 半宽键（两个键占一格）。
+脚本把每个 token 摆到它那一格的位置上：
+
+- 空格子留空（不再是 token 一个挨一个排下去）。
+- 拇指行按图整体缩进，对齐到它上面那几格。
+- 半宽键两个挤在一格宽里。
+- 每格宽度 = 这一格上所有层里最长 token + 1（留一个空格），最小取图里的格宽
+  （整格 10 字符 / 半格 5），所以行与行、层与层都对齐。
+
+只重排 `bindings = <...>` 内部的空白：注释、缩进风格、token 内容与顺序一律不动。
+
+用法:
+  ./keymap_align config/sofle_dongle.keymap            # 原地整理
+  ./keymap_align config/sofle_dongle.keymap --check     # 只检查，没对齐就退出码 1
+  ./keymap_align config/sofle_dongle.keymap --stdout     # 打到标准输出，不落盘
+  ./keymap_align 别的.keymap --grid-from config/sofle_dongle.keymap  # 借用别处的格子图
+"""
+
+import argparse
+import re
+import sys
+from collections import Counter
+from pathlib import Path
+
+# `sensor-bindings = <...>` 不归本脚本管；`-` 与 `\w` 之间也算词边界，得挡住
+BINDINGS_RE = re.compile(r"(?<![\w-])bindings\s*=\s*<")
+KEYMAP_RE = re.compile(r"(?m)^[ \t]*keymap\s*\{")
+NODE_RE = re.compile(r"(?m)^[ \t]*([\w-]+)\s*\{\s*$")
+ROW_LINE_RE = re.compile(r"^\s*//\s*-+\s*$")
+COMMENT_RE = re.compile(r"//[^\n]*|/\*.*?\*/", re.S)
+
+
+class Fail(Exception):
+    """用户能修的输入问题，打一行提示就退出。"""
+
+
+# --- 1. 格子图：从索引注释里读 ---
+
+def parse_grid(text: str) -> tuple[list[list[dict]], int]:
+    """把索引注释读成格子图。
+
+    返回 (rows, 整格宽)。每行是一串格子，格子是
+    {"key": 编号或 None, "hu": 起始半格, "n": 占几个半格}。
+    """
+    lines = text.split("\n")
+    head = next((k for k, l in enumerate(lines)
+                 if "矩阵索引" in l or "Matrix Index" in l), None)
+    if head is None:
+        raise Fail("文件里没有「矩阵索引」注释块，格子图没地方读"
+                   "（别的 keymap 可以用 --grid-from 借一张）")
+
+    raw = []
+    for line in lines[head + 1:]:
+        s = line.rstrip()
+        if not s.strip().startswith("//"):
+            break
+        if ROW_LINE_RE.match(s):
+            if raw:  # 收尾的分隔线
+                break
+            continue
+        if "|" in s:
+            raw.append(s)
+    if not raw:
+        raise Fail("「矩阵索引」注释块里没有格子行")
+
+    # 一格多宽：所有格子 (长度 + 1) 的众数，就是注释里最常见的 `|   12    |` = 10
+    segs = [seg for s in raw for seg in _cells(s)]
+    unit = Counter(len(s) + 1 for s in segs).most_common(1)[0][0]
+    if unit < 4:
+        raise Fail(f"索引注释的格宽只有 {unit} 字符，看不出整格/半格")
+
+    left = min(s.index("|") for s in raw)
+    rows = []
+    for s in raw:
+        hu = int(round((s.index("|") - left) / unit * 2))  # 缩进的格子数 → 半格坐标
+        slots = []
+        for seg in _cells(s):
+            n = int(round((len(seg) + 1) / unit * 2))      # 这个格子占几个半格
+            name = seg.strip()
+            slots.append({"key": int(name) if name.isdigit() else None,
+                          "hu": hu, "n": max(n, 1)})
+            hu += max(n, 1)
+        rows.append(slots)
+    return rows, unit
+
+
+def _cells(line: str) -> list[str]:
+    """一行 `// | a | b |` 里每个 `|` 之间的内容。"""
+    body = line[line.index("//") + 2:]
+    return body.split("|")[1:-1]
+
+
+# --- 2. 定位各层的 bindings 与其中的 token ---
+
+def brace_end(text: str, open_idx: int) -> int:
+    """从 `{` 找到配对的 `}`（注释里没有大括号才准）。"""
+    depth = 0
+    for j in range(open_idx, len(text)):
+        if text[j] == "{":
+            depth += 1
+        elif text[j] == "}":
+            depth -= 1
+            if depth == 0:
+                return j
+    raise Fail("keymap 节点的花括号没有配平")
+
+
+def node_name(block: str, pos: int) -> str:
+    """往上找最近的 `xxx {` 当层名，只为了让日志/报错说得清是哪一层。"""
+    m = NODE_RE.findall(block[:pos])
+    return m[-1] if m else "?"
+
+
+def group_bindings(interior: str) -> tuple[list[str], list[tuple[int, str]]]:
+    """按 `&` 开头切 token：`&fn_tap 2 ENTER` 是一个绑定，不是三个。
+
+    返回 (绑定文本列表, [(字符偏移, 注释文本)])，绑定内部空白统一成一个空格。
+    """
+    comments = [(m.start(), m.group().strip()) for m in COMMENT_RE.finditer(interior)]
+    body = COMMENT_RE.sub(lambda m: " " * len(m.group()), interior)
+
+    bindings: list[str] = []
+    cells: list[str] = []
+    for m in re.finditer(r"\S+", body):
+        w = m.group()
+        if w.startswith("&"):
+            if cells:
+                bindings.append(" ".join(cells))
+            cells = [w]
+        elif cells:
+            cells.append(w)
+        else:
+            raise Fail(f"bindings 里出现了不以 & 开头的 token: {w!r}")
+    if cells:
+        bindings.append(" ".join(cells))
+    return bindings, comments
+
+
+def collect_layers(text: str) -> list[dict]:
+    """找到 keymap 节点，再把它里面每个 `bindings = <...>` 的内容抠出来。"""
+    span = KEYMAP_RE.search(text)
+    if not span:
+        raise Fail("这个文件里没有 `keymap {` 节点")
+    block = text[span.start():brace_end(text, text.index("{", span.start())) + 1]
+
+    layers = []
+    for m in BINDINGS_RE.finditer(block):
+        lt = block.index("<", m.start())
+        gt = block.index(">", lt)
+        interior = block[lt + 1:gt]
+        bindings, comments = group_bindings(interior)
+        layers.append({
+            "name": node_name(block, m.start()),
+            "start": span.start() + lt + 1,  # 文件里的绝对偏移
+            "end": span.start() + gt,
+            "interior": interior,
+            "bindings": bindings,
+            "comments": comments,
+        })
+    if not layers:
+        raise Fail("keymap 节点里没找到 `bindings = <`")
+    return layers
+
+
+# --- 3. 算格宽、摆 token ---
+
+def n_half(rows: list[list[dict]]) -> int:
+    """整张图横向一共几个半格。"""
+    return max(s["hu"] + s["n"] for r in rows for s in r)
+
+
+def n_keys(rows: list[list[dict]]) -> int:
+    """整张图一共几个键位；编号必须从 0 连到 n-1，不然绑定会错位。"""
+    keys = sorted(s["key"] for r in rows for s in r if s["key"] is not None)
+    if not keys:
+        raise Fail("格子图里一个键位都没有")
+    if keys != list(range(len(keys))):
+        missing = sorted(set(range(keys[-1] + 1)) - set(keys))
+        raise Fail(f"索引注释里缺编号 {missing}，格子图对不上矩阵")
+    return len(keys)
+
+
+def key_rows(rows: list[list[dict]]) -> dict[int, int]:
+    """矩阵编号 → 它在第几行（注释挂回原行要用）。"""
+    return {s["key"]: r_i for r_i, r in enumerate(rows)
+            for s in r if s["key"] is not None}
+
+
+def half_widths(layers: list[dict], rows: list[list[dict]], unit: int) -> list[int]:
+    """每个半格多宽：该格上最长 token + 1，最小取图里的半格宽。"""
+    half = [max(1, unit // 2)] * n_half(rows)
+    for r in rows:
+        for s in r:
+            if s["key"] is None:
+                continue
+            for layer in layers:
+                if s["key"] >= len(layer["bindings"]):
+                    continue
+                need = len(layer["bindings"][s["key"]]) + 1     # 末尾留一个空格
+                share = -(-need // s["n"])                      # 占多格的键摊到每个半格
+                for k in range(s["hu"], s["hu"] + s["n"]):
+                    half[k] = max(half[k], share)
+    return half
+
+
+def render_layer(layer: dict, rows: list[list[dict]], half: list[int]) -> str:
+    """一层摆成若干行：token 落在自己那格，空格子留空，半宽键两两挤一格。"""
+    by_row = key_rows(rows)
+    attach: dict[int, list[str]] = {}
+    for off, cmt in layer["comments"]:
+        before = len(group_bindings(layer["interior"][:off])[0])
+        if before in by_row:
+            attach.setdefault(by_row[before], []).append(cmt)
+
+    lines = []
+    for r_i, r in enumerate(rows):
+        line = ""
+        for s in r:
+            start = sum(half[:s["hu"]])
+            if start > len(line):
+                line += " " * (start - len(line))
+            width = sum(half[s["hu"]:s["hu"] + s["n"]])
+            if s["key"] is None or s["key"] >= len(layer["bindings"]):
+                line += " " * width
+            else:
+                line += layer["bindings"][s["key"]].ljust(width)
+        line = line.rstrip()
+        if attach.get(r_i):
+            line += "  " + " ".join(attach[r_i])
+        lines.append(line)
+    return "\n" + "\n".join(lines) + trailing_ws(layer["interior"])
+
+
+def trailing_ws(interior: str) -> str:
+    """`>;` 前面那段空白（换行 + 缩进），原样保留。"""
+    return interior[len(interior.rstrip("\n \t")):]
+
+
+def format_text(text: str, rows: list[list[dict]], unit: int) -> tuple[str, list[str], int]:
+    """返回 (整理后的全文, 提示信息, 层数)；只动 bindings 内部的空白。"""
+    layers = collect_layers(text)
+    n_grid = n_keys(rows)
+    half = half_widths(layers, rows, unit)
+
+    notes = []
+    for layer in layers:
+        got = len(layer["bindings"])
+        if got > n_grid:
+            raise Fail(f"{layer['name']} 有 {got} 个绑定，比格子图的 {n_grid} 个键位多："
+                       f"先确认注释图要不要更新")
+        if got < n_grid:
+            notes.append(f"{layer['name']} 只有 {got} 个绑定，"
+                         f"编号 {got} 之后的键位这层留空（透传到下层）")
+
+    out, cursor = [], 0
+    for layer in layers:
+        out.append(text[cursor:layer["start"]])
+        out.append(render_layer(layer, rows, half))
+        cursor = layer["end"]
+    out.append(text[cursor:])
+    return "".join(out), notes, len(layers)
+
+
+# --- 4. CLI ---
+
+def main() -> int:
+    ap = argparse.ArgumentParser(
+        description="把 keymap 各层 bindings = <...> 摆成索引注释那张键盘图的形状",
+    )
+    ap.add_argument("keymap", nargs="?", default="config/sofle_dongle.keymap",
+                    help="keymap 文件（默认 config/sofle_dongle.keymap）")
+    ap.add_argument("--grid-from", metavar="文件",
+                    help="从这个文件借「矩阵索引」注释块当格子图（默认用 keymap 自己的）")
+    ap.add_argument("--check", action="store_true", help="不写文件，没对齐就退出码 1")
+    ap.add_argument("--stdout", action="store_true", help="打到标准输出，不落盘")
+    args = ap.parse_args()
+
+    path = Path(args.keymap)
+    if not path.is_file():
+        print(f"找不到文件: {path}", file=sys.stderr)
+        return 2
+    text = path.read_text(encoding="utf-8")
+
+    grid_path = Path(args.grid_from) if args.grid_from else path
+    if not grid_path.is_file():
+        print(f"找不到格子图文件: {grid_path}", file=sys.stderr)
+        return 2
+
+    try:
+        rows, unit = parse_grid(grid_path.read_text(encoding="utf-8"))
+        new_text, notes, n_layers = format_text(text, rows, unit)
+    except Fail as e:
+        print(f"{path}: {e}", file=sys.stderr)
+        return 2
+
+    for note in notes:
+        print(f"注意 {path}: {note}", file=sys.stderr)
+    print(f"{path}: 格子图来自 {grid_path}，{len(rows)} 行 / {n_keys(rows)} 个键位"
+          f"（整格 {unit} 字符），{n_layers} 层", file=sys.stderr)
+
+    if args.stdout:
+        sys.stdout.write(new_text)
+        return 0
+
+    if new_text == text:
+        print(f"{path}: 已经对齐", file=sys.stderr)
+        return 0
+    if args.check:
+        print(f"{path}: 没对齐，跑一次 {Path(__file__).name} {path} 即可", file=sys.stderr)
+        return 1
+
+    path.write_text(new_text, encoding="utf-8")
+    print(f"{path}: 已整理", file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
