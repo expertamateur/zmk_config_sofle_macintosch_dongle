@@ -116,8 +116,8 @@ layers:
   - )
   - ;
   - ''
-  - {t: ▽, type: trans}
-  - {t: ▽, type: trans}
+  - SLEEP
+  - POWER
   - {t: ▽, type: trans}
   - {t: ▽, type: trans}
   - '%'
@@ -144,8 +144,8 @@ layers:
   - '&bt_out2'
   - '&bt_out3'
   - '&bt_out4'
-  - POWER
-  - SLEEP
+  - ''
+  - ''
   - ''
   - ''
   - ''
